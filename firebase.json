@@ -1,0 +1,40 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "ltdd-appquizz-master",
+          "appId": "1:110209369523:android:ba4a1e9dece3aa146c37c6",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "ltdd-appquizz-master",
+          "configurations": {
+            "android": "1:110209369523:android:ba4a1e9dece3aa146c37c6",
+            "web": "1:110209369523:web:3e52d90ab62a8bec6c37c6",
+            "windows": "1:110209369523:web:6253aa6b3056c1dc6c37c6"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "110209369523",
+    "project_id": "ltdd-appquizz-master",
+    "storage_bucket": "ltdd-appquizz-master.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:110209369523:android:ba4a1e9dece3aa146c37c6",
+        "android_client_info": {
+          "package_name": "com.example.quizz_master"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6SvvqmcldY1sRhXmLZ1EYCj9cnEeAOCo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
