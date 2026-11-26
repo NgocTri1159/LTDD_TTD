@@ -1,4 +1,3 @@
-
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -13,6 +12,13 @@ class AuthService {
 
   // Lấy tài khoản hiện tại
   User? get currentUser => _auth.currentUser;
+
+  // Kiểm tra tài khoản hiện tại có đăng nhập bằng Email/Mật khẩu không
+  bool get hasPasswordProvider {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    return user.providerData.any((info) => info.providerId == 'password');
+  }
 
   // Đăng ký
   Future<UserCredential> register({
@@ -54,7 +60,6 @@ class AuthService {
         rethrow;
       }
 
-      // Debug
       final tokenResult = await user.getIdTokenResult();
 
       debugPrint('========== REGISTER SUCCESS ==========');
@@ -74,7 +79,7 @@ class AuthService {
     }
   }
 
-  // Đăng nhập
+  // Đăng nhập Email / Mật khẩu
   Future<UserCredential> login({
     required String email,
     required String password,
@@ -88,10 +93,8 @@ class AuthService {
       final user = credential.user;
 
       if (user != null) {
-        // Kiểm tra claim hiện tại
         var tokenResult = await user.getIdTokenResult(true);
 
-        // Nếu chưa có claim authenticated thì gọi Backend cấp quyền
         if (tokenResult.claims?['role'] != 'authenticated') {
           await BackendService.provisionRole();
           tokenResult = await user.getIdTokenResult(true);
@@ -102,14 +105,107 @@ class AuthService {
         debugPrint('EMAIL: ${user.email}');
         debugPrint('CLAIMS: ${tokenResult.claims}');
         debugPrint('=====================================');
-
-
       }
 
       return credential;
     } catch (e) {
       debugPrint('LOGIN ERROR: $e');
       rethrow;
+    }
+  }
+
+  // Đăng nhập bằng Google (Web & Mobile)
+  Future<UserCredential> loginWithGoogle() async {
+    try {
+      final googleProvider = GoogleAuthProvider()
+        ..addScope('email')
+        ..addScope('profile')
+        ..setCustomParameters({'prompt': 'select_account'});
+
+      final UserCredential credential = kIsWeb
+          ? await _auth.signInWithPopup(googleProvider)
+          : await _auth.signInWithProvider(googleProvider);
+
+      final user = credential.user;
+
+      if (user == null) {
+        throw Exception('Không lấy được thông tin tài khoản Google.');
+      }
+
+      // 1. Kiểm tra và cấp custom claim authenticated nếu chưa có
+      var tokenResult = await user.getIdTokenResult(true);
+      if (tokenResult.claims?['role'] != 'authenticated') {
+        await BackendService.provisionRole();
+        tokenResult = await user.getIdTokenResult(true);
+      }
+
+      // 2. Đồng bộ hồ sơ sang Supabase (đảm bảo user Google lần đầu có dữ liệu)
+      final displayName = (user.displayName != null &&
+              user.displayName!.trim().isNotEmpty)
+          ? user.displayName!.trim()
+          : (user.email?.split('@').first ?? 'Người dùng QuizMaster');
+
+      await SupabaseService.syncUserProfile(hoTen: displayName);
+
+      debugPrint('========== GOOGLE LOGIN SUCCESS ==========');
+      debugPrint('UID: ${user.uid}');
+      debugPrint('EMAIL: ${user.email}');
+      debugPrint('CLAIMS: ${tokenResult.claims}');
+      debugPrint('==========================================');
+
+      return credential;
+    } on FirebaseAuthException catch (e) {
+      debugPrint('GOOGLE LOGIN ERROR CODE: ${e.code}');
+      debugPrint('GOOGLE LOGIN ERROR MESSAGE: ${e.message}');
+      rethrow;
+    } catch (e) {
+      debugPrint('GOOGLE LOGIN UNKNOWN ERROR: $e');
+      rethrow;
+    }
+  }
+
+  // Đổi mật khẩu bằng mật khẩu cũ (Firebase Auth)
+  Future<void> changePasswordWithOldPassword({
+    required String email,
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+    }
+
+    if (!hasPasswordProvider) {
+      throw Exception(
+        'Tài khoản này đăng nhập bằng Google nên chưa có mật khẩu cũ. Vui lòng dùng tính năng đặt lại mật khẩu qua Email.',
+      );
+    }
+
+    try {
+      final credential = EmailAuthProvider.credential(
+        email: email.trim(),
+        password: oldPassword,
+      );
+
+      // Xác thực lại mật khẩu cũ trước khi đổi
+      await user.reauthenticateWithCredential(credential);
+
+      // Cập nhật mật khẩu mới
+      await user.updatePassword(newPassword);
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'wrong-password':
+        case 'invalid-credential':
+          throw Exception('Mật khẩu cũ không chính xác.');
+        case 'weak-password':
+          throw Exception('Mật khẩu mới quá yếu (cần ít nhất 6 ký tự).');
+        case 'requires-recent-login':
+          throw Exception('Vui lòng đăng xuất và đăng nhập lại để đổi mật khẩu.');
+        case 'too-many-requests':
+          throw Exception('Bạn thao tác quá nhiều lần. Vui lòng thử lại sau.');
+        default:
+          throw Exception(e.message ?? 'Không thể đổi mật khẩu.');
+      }
     }
   }
 

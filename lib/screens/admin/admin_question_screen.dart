@@ -1,9 +1,9 @@
-
 import 'package:material_ui/material_ui.dart';
 
 import '../../models/question_model.dart';
 import '../../models/subject_model.dart';
 import '../../services/admin_service.dart';
+import '../../theme/app_theme.dart';
 import 'admin_question_form_screen.dart';
 
 class AdminQuestionScreen extends StatefulWidget {
@@ -14,8 +14,6 @@ class AdminQuestionScreen extends StatefulWidget {
 }
 
 class _AdminQuestionScreenState extends State<AdminQuestionScreen> {
-  static const Color primaryColor = Color(0xFF6257E8);
-
   late Future<List<SubjectModel>> _subjectsFuture;
   late Future<List<QuestionModel>> _questionsFuture;
 
@@ -40,7 +38,6 @@ class _AdminQuestionScreenState extends State<AdminQuestionScreen> {
     setState(_loadQuestions);
   }
 
-  /// Mở form tạo câu hỏi mới.
   Future<void> _openAddQuestion() async {
     final result = await Navigator.push<bool>(
       context,
@@ -77,218 +74,283 @@ class _AdminQuestionScreenState extends State<AdminQuestionScreen> {
   Color _difficultyColor(String value) {
     switch (value) {
       case 'de':
-        return Colors.green;
+        return AppTheme.success;
       case 'kho':
-        return Colors.red;
+        return AppTheme.error;
       default:
         return Colors.orange;
     }
   }
 
   Widget _buildFilters() {
-    return FutureBuilder<List<SubjectModel>>(
-      future: _subjectsFuture,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Text(
-            'Không tải được danh sách môn học: ${snapshot.error}',
-          );
-        }
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: FutureBuilder<List<SubjectModel>>(
+        future: _subjectsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Text(
+              'Không tải được danh sách môn học: ${snapshot.error}',
+            );
+          }
 
-        final subjects = snapshot.data ?? [];
+          final subjects = snapshot.data ?? [];
 
-        return Column(
-          children: [
-            DropdownButtonFormField<String?>(
-              initialValue: _selectedSubjectId,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Lọc theo môn học',
-                prefixIcon: Icon(Icons.menu_book_outlined),
-                border: OutlineInputBorder(),
-              ),
-              items: [
-                const DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('Tất cả môn học'),
-                ),
-                ...subjects.map(
-                  (subject) => DropdownMenuItem<String?>(
-                    value: subject.id,
-                    child: Text(subject.tenMon),
+          return Column(
+            children: [
+              DropdownButtonFormField<String?>(
+                initialValue: _selectedSubjectId,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: 'Lọc theo môn học',
+                  prefixIcon: const Icon(
+                    Icons.menu_book_outlined,
+                    color: AppTheme.primary,
+                  ),
+                  filled: true,
+                  fillColor: AppTheme.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
                 ),
-              ],
-              onChanged: (value) {
-                _selectedSubjectId = value;
-                _applyFilters();
-              },
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String?>(
-              initialValue: _selectedDifficulty,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Lọc theo độ khó',
-                prefixIcon: Icon(Icons.tune),
-                border: OutlineInputBorder(),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Tất cả môn học'),
+                  ),
+                  ...subjects.map(
+                    (subject) => DropdownMenuItem<String?>(
+                      value: subject.id,
+                      child: Text(subject.tenMon),
+                    ),
+                  ),
+                ],
+                onChanged: (value) {
+                  _selectedSubjectId = value;
+                  _applyFilters();
+                },
               ),
-              items: const [
-                DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('Tất cả độ khó'),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String?>(
+                initialValue: _selectedDifficulty,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: 'Lọc theo độ khó',
+                  prefixIcon: const Icon(
+                    Icons.tune_rounded,
+                    color: AppTheme.primary,
+                  ),
+                  filled: true,
+                  fillColor: AppTheme.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
-                DropdownMenuItem<String?>(
-                  value: 'de',
-                  child: Text('Dễ'),
-                ),
-                DropdownMenuItem<String?>(
-                  value: 'trung_binh',
-                  child: Text('Trung bình'),
-                ),
-                DropdownMenuItem<String?>(
-                  value: 'kho',
-                  child: Text('Khó'),
-                ),
-              ],
-              onChanged: (value) {
-                _selectedDifficulty = value;
-                _applyFilters();
-              },
-            ),
-          ],
-        );
-      },
+                items: const [
+                  DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Tất cả độ khó'),
+                  ),
+                  DropdownMenuItem<String?>(
+                    value: 'de',
+                    child: Text('Dễ'),
+                  ),
+                  DropdownMenuItem<String?>(
+                    value: 'trung_binh',
+                    child: Text('Trung bình'),
+                  ),
+                  DropdownMenuItem<String?>(
+                    value: 'kho',
+                    child: Text('Khó'),
+                  ),
+                ],
+                onChanged: (value) {
+                  _selectedDifficulty = value;
+                  _applyFilters();
+                },
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
   Widget _buildQuestionCard(QuestionModel question, int index) {
     final answerCount = question.danhSachDapAn.length;
+    final diffColor = _difficultyColor(question.mucDo);
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 17,
-                  backgroundColor: primaryColor.withValues(alpha: 0.12),
-                  child: Text(
-                    '${index + 1}',
-                    style: const TextStyle(
-                      color: primaryColor,
-                      fontWeight: FontWeight.bold,
-                    ),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 17,
+                backgroundColor: AppTheme.primary.withValues(alpha: 0.12),
+                child: Text(
+                  '${index + 1}',
+                  style: const TextStyle(
+                    color: AppTheme.primary,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    question.loaiCauHoi?.tenLoai ?? 'Câu hỏi',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Chip(
-                  label: Text(_difficultyLabel(question.mucDo)),
-                  labelStyle: TextStyle(
-                    color: _difficultyColor(question.mucDo),
-                    fontSize: 12,
-                  ),
-                  backgroundColor: _difficultyColor(
-                    question.mucDo,
-                  ).withValues(alpha: 0.1),
-                  side: BorderSide.none,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              question.noiDung,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
               ),
-            ),
-            if (question.hinhAnhUrl != null &&
-                question.hinhAnhUrl!.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  question.hinhAnhUrl!,
-                  height: 150,
-                  width: double.infinity,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) =>
-                      const Text('Không thể tải hình ảnh câu hỏi'),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  question.loaiCauHoi?.tenLoai ?? 'Câu hỏi',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: diffColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _difficultyLabel(question.mucDo),
+                  style: TextStyle(
+                    color: diffColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _infoChip(Icons.star_outline, '${question.diem} điểm'),
-                _infoChip(Icons.list_alt, '$answerCount đáp án'),
-                if (question.thoiGianGiay != null)
-                  _infoChip(
-                    Icons.timer_outlined,
-                    '${question.thoiGianGiay} giây',
-                  ),
-                if (question.amThanhUrl != null &&
-                    question.amThanhUrl!.isNotEmpty)
-                  _infoChip(
-                    Icons.volume_up_outlined,
-                    'Có âm thanh',
-                  ),
-              ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            question.noiDung,
+            style: const TextStyle(
+              fontSize: 15.5,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
             ),
-            const SizedBox(height: 8),
-            if (question.danhSachDapAn.isNotEmpty)
-              ExpansionTile(
-                tilePadding: EdgeInsets.zero,
-                title: const Text('Xem danh sách đáp án'),
-                children: question.danhSachDapAn.map((answer) {
-                  return ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(
-                      answer.laDung
-                          ? Icons.check_circle
-                          : Icons.circle_outlined,
-                      color: answer.laDung ? Colors.green : Colors.grey,
-                    ),
-                    title: Text(answer.noiDung),
-                    subtitle: answer.laDung
-                        ? const Text(
-                            'Đáp án đúng',
-                            style: TextStyle(color: Colors.green),
-                          )
-                        : null,
-                  );
-                }).toList(),
+          ),
+          if (question.hinhAnhUrl != null &&
+              question.hinhAnhUrl!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(
+                question.hinhAnhUrl!,
+                height: 150,
+                width: double.infinity,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) =>
+                    const Text('Không thể tải hình ảnh câu hỏi'),
               ),
+            ),
           ],
-        ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _infoChip(Icons.star_outline_rounded, '${question.diem} điểm'),
+              _infoChip(Icons.list_alt_rounded, '$answerCount đáp án'),
+              if (question.thoiGianGiay != null)
+                _infoChip(
+                  Icons.timer_outlined,
+                  '${question.thoiGianGiay} giây',
+                ),
+              if (question.amThanhUrl != null &&
+                  question.amThanhUrl!.isNotEmpty)
+                _infoChip(
+                  Icons.volume_up_outlined,
+                  'Có âm thanh',
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (question.danhSachDapAn.isNotEmpty)
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: const Text(
+                'Xem danh sách đáp án',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.primary,
+                ),
+              ),
+              children: question.danhSachDapAn.map((answer) {
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    answer.laDung
+                        ? Icons.check_circle_rounded
+                        : Icons.circle_outlined,
+                    color: answer.laDung ? AppTheme.success : Colors.grey,
+                  ),
+                  title: Text(answer.noiDung),
+                  subtitle: answer.laDung
+                      ? const Text(
+                          'Đáp án đúng',
+                          style: TextStyle(color: AppTheme.success),
+                        )
+                      : null,
+                );
+              }).toList(),
+            ),
+        ],
       ),
     );
   }
 
   Widget _infoChip(IconData icon, String label) {
-    return Chip(
-      avatar: Icon(icon, size: 16),
-      label: Text(label),
-      visualDensity: VisualDensity.compact,
-      side: BorderSide.none,
-      backgroundColor: Colors.grey.withValues(alpha: 0.1),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: AppTheme.textSecondary),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -313,7 +375,7 @@ class _AdminQuestionScreenState extends State<AdminQuestionScreen> {
                 children: [
                   const Icon(
                     Icons.error_outline,
-                    color: Colors.red,
+                    color: AppTheme.error,
                     size: 42,
                   ),
                   const SizedBox(height: 12),
@@ -361,12 +423,12 @@ class _AdminQuestionScreenState extends State<AdminQuestionScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: 12, left: 4),
               child: Text(
                 'Tìm thấy ${questions.length} câu hỏi',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: primaryColor,
+                  color: AppTheme.primary,
                 ),
               ),
             ),
@@ -385,35 +447,55 @@ class _AdminQuestionScreenState extends State<AdminQuestionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Kho câu hỏi'),
-        backgroundColor: primaryColor,
+        title: const Text(
+          'Kho câu hỏi',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            tooltip: 'Thêm câu hỏi',
-            onPressed: _openAddQuestion,
-            icon: const Icon(Icons.add),
-          ),
-          IconButton(
             tooltip: 'Tải lại',
             onPressed: _refresh,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+          IconButton(
+            tooltip: 'Thêm câu hỏi',
+            onPressed: _openAddQuestion,
+            icon: const Icon(Icons.add_circle_outline_rounded),
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildFilters(),
-              const SizedBox(height: 24),
-              _buildQuestionList(),
-            ],
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openAddQuestion,
+        backgroundColor: AppTheme.primary,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text(
+          'Thêm câu hỏi',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1000),
+          child: RefreshIndicator(
+            onRefresh: _refresh,
+            color: AppTheme.primary,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 84),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildFilters(),
+                  const SizedBox(height: 20),
+                  _buildQuestionList(),
+                ],
+              ),
+            ),
           ),
         ),
       ),

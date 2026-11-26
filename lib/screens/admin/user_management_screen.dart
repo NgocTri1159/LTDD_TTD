@@ -1,8 +1,11 @@
+import 'dart:core';
+import 'dart:core' as core;
 import 'package:material_ui/material_ui.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../../services/user_management_service.dart';
 import '../../services/role_service.dart';
+import '../../services/user_management_service.dart';
+import '../../theme/app_theme.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
@@ -12,15 +15,13 @@ class UserManagementScreen extends StatefulWidget {
 }
 
 class _UserManagementScreenState extends State<UserManagementScreen> {
-  static const Color primaryColor = Color(0xFF6257E8);
-
   final TextEditingController _searchController = TextEditingController();
 
-  List<Map<String, dynamic>> _users = [];
+  core.List<core.Map<core.String, dynamic>> _users = [];
   bool _isLoading = true;
-  String? _errorMessage;
-  String _searchQuery = '';
-  String? _currentRole;
+  core.String? _errorMessage;
+  core.String _searchQuery = '';
+  core.String? _currentRole;
 
   bool get _isSuperAdmin => _currentRole == 'super_admin';
 
@@ -36,7 +37,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     super.dispose();
   }
 
-  // Tải vai trò và danh sách người dùng.
   Future<void> _loadUsers() async {
     if (!mounted) return;
 
@@ -49,7 +49,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       final role = await RoleService.getCurrentRole();
 
       if (role != 'admin' && role != 'super_admin') {
-        throw Exception('Bạn không có quyền quản lý người dùng.');
+        throw core.Exception('Bạn không có quyền quản lý người dùng.');
       }
 
       final users = await UserManagementService.getAllUsers();
@@ -71,8 +71,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
-  // Lọc theo họ tên hoặc email.
-  List<Map<String, dynamic>> get _filteredUsers {
+  core.List<core.Map<core.String, dynamic>> get _filteredUsers {
     if (_searchQuery.trim().isEmpty) {
       return _users;
     }
@@ -87,33 +86,25 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }).toList();
   }
 
-  // Kiểm tra quyền khóa/mở khóa tài khoản.
-  bool _canChangeStatus(Map<String, dynamic> user) {
+  bool _canChangeStatus(core.Map<core.String, dynamic> user) {
     final role = user['vai_tro']?.toString() ?? 'user';
     final userId = user['id']?.toString();
     final currentUid = FirebaseAuth.instance.currentUser?.uid;
 
-    // Không ai được khóa Super Admin.
     if (role == 'super_admin') return false;
-
-    // Không được tự khóa tài khoản.
     if (userId == currentUid) return false;
-
-    // Admin chỉ được quản lý User.
     if (!_isSuperAdmin && role != 'user') return false;
 
     return true;
   }
 
-  // Kiểm tra quyền thay đổi vai trò.
-  bool _canChangeRole(Map<String, dynamic> user) {
+  bool _canChangeRole(core.Map<core.String, dynamic> user) {
     if (!_isSuperAdmin) return false;
 
     final role = user['vai_tro']?.toString() ?? 'user';
     final userId = user['id']?.toString();
     final currentUid = FirebaseAuth.instance.currentUser?.uid;
 
-    // Không thay đổi Super Admin hoặc chính tài khoản hiện tại.
     if (role == 'super_admin' || userId == currentUid) {
       return false;
     }
@@ -121,8 +112,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     return role == 'user' || role == 'admin';
   }
 
-  // Khóa hoặc mở khóa tài khoản.
-  Future<void> _changeUserStatus(Map<String, dynamic> user) async {
+  Future<void> _changeUserStatus(core.Map<core.String, dynamic> user) async {
     if (!_canChangeStatus(user)) {
       _showMessage('Bạn không có quyền thực hiện thao tác này.');
       return;
@@ -156,7 +146,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: newStatus ? Colors.green : Colors.red,
+                backgroundColor: newStatus ? AppTheme.success : AppTheme.error,
                 foregroundColor: Colors.white,
               ),
               onPressed: () => Navigator.pop(dialogContext, true),
@@ -192,8 +182,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
-  // Thăng cấp User thành Admin hoặc hạ Admin xuống User.
-  Future<void> _changeUserRole(Map<String, dynamic> user) async {
+  Future<void> _changeUserRole(core.Map<core.String, dynamic> user) async {
     if (!_canChangeRole(user)) {
       _showMessage('Bạn không có quyền thay đổi vai trò tài khoản.');
       return;
@@ -208,7 +197,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     final currentRole = user['vai_tro']?.toString() ?? 'user';
     final newRole = currentRole == 'user' ? 'admin' : 'user';
-
     final name = user['ho_ten']?.toString() ?? userId;
 
     final confirmed = await showDialog<bool>(
@@ -232,7 +220,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
+                backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
               ),
               onPressed: () => Navigator.pop(dialogContext, true),
@@ -265,19 +253,18 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
-  void _showMessage(String message, {bool isError = true}) {
+  void _showMessage(core.String message, {bool isError = true}) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? Colors.red : Colors.green,
+        backgroundColor: isError ? AppTheme.error : AppTheme.success,
       ),
     );
   }
 
-  // Hiển thị chi tiết tài khoản.
-  void _showUserDetails(Map<String, dynamic> user) {
+  void _showUserDetails(core.Map<core.String, dynamic> user) {
     final role = user['vai_tro']?.toString() ?? 'user';
     final isActive = user['trang_thai'] == true;
 
@@ -306,7 +293,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   isActive ? 'Đang hoạt động' : 'Đã bị khóa',
                 ),
                 _detailRow('Ngày tạo', _formatDate(user['ngay_tao'])),
-
                 if (role == 'super_admin') ...[
                   const SizedBox(height: 8),
                   const Text(
@@ -316,7 +302,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     style: TextStyle(color: Colors.orange, fontSize: 12),
                   ),
                 ],
-
                 if (isCurrentUser) ...[
                   const SizedBox(height: 8),
                   const Text(
@@ -333,11 +318,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Đóng'),
             ),
-
             if (canChangeRole)
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
+                  backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
                 ),
                 icon: const Icon(Icons.admin_panel_settings),
@@ -349,11 +333,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   _changeUserRole(user);
                 },
               ),
-
             if (canChangeStatus)
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isActive ? Colors.red : Colors.green,
+                  backgroundColor: isActive ? AppTheme.error : AppTheme.success,
                   foregroundColor: Colors.white,
                 ),
                 icon: Icon(isActive ? Icons.lock : Icons.lock_open),
@@ -369,7 +352,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
-  Widget _detailRow(String label, dynamic value) {
+  Widget _detailRow(core.String label, dynamic value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Column(
@@ -383,7 +366,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
-  String _roleLabel(String role) {
+  core.String _roleLabel(core.String role) {
     switch (role) {
       case 'super_admin':
         return 'SUPER ADMIN';
@@ -394,10 +377,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
-  String _formatDate(dynamic value) {
+  core.String _formatDate(dynamic value) {
     if (value == null) return 'Không xác định';
 
-    final date = DateTime.tryParse(value.toString());
+    final date = core.DateTime.tryParse(value.toString());
 
     if (date == null) return value.toString();
 
@@ -408,11 +391,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         '${localDate.year}';
   }
 
-  Widget _buildStatusChip(String label, Color color) {
+  Widget _buildStatusChip(core.String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -426,7 +409,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
-  Widget _buildUserCard(Map<String, dynamic> user) {
+  Widget _buildUserCard(core.Map<core.String, dynamic> user) {
     final name = user['ho_ten']?.toString() ?? 'Chưa có tên';
     final email = user['email']?.toString() ?? '';
     final role = user['vai_tro']?.toString() ?? 'user';
@@ -434,37 +417,60 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     final roleColor = switch (role) {
       'super_admin' => Colors.deepOrange,
-      'admin' => primaryColor,
+      'admin' => AppTheme.primary,
       _ => Colors.blue,
     };
 
     final roleIcon = switch (role) {
       'super_admin' => Icons.workspace_premium_rounded,
-      'admin' => Icons.admin_panel_settings,
-      _ => Icons.person,
+      'admin' => Icons.admin_panel_settings_rounded,
+      _ => Icons.person_rounded,
     };
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 10,
         ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         leading: CircleAvatar(
+          radius: 23,
           backgroundColor: roleColor.withValues(alpha: 0.12),
           child: Icon(roleIcon, color: roleColor),
         ),
-        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          name,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary,
+          ),
+        ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 5),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(email),
-              const SizedBox(height: 7),
+              Text(
+                email,
+                style: const TextStyle(color: AppTheme.textSecondary),
+              ),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 5,
@@ -472,14 +478,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   _buildStatusChip(_roleLabel(role), roleColor),
                   _buildStatusChip(
                     isActive ? 'Hoạt động' : 'Đã khóa',
-                    isActive ? Colors.green : Colors.red,
+                    isActive ? AppTheme.success : AppTheme.error,
                   ),
                 ],
               ),
             ],
           ),
         ),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: const Icon(Icons.chevron_right_rounded),
         onTap: () => _showUserDetails(user),
       ),
     );
@@ -488,7 +494,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   Widget _buildBody() {
     if (_isLoading) {
       return const Center(
-        child: CircularProgressIndicator(color: primaryColor),
+        child: CircularProgressIndicator(color: AppTheme.primary),
       );
     }
 
@@ -499,7 +505,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 55),
+              const Icon(Icons.error_outline, color: AppTheme.error, size: 55),
               const SizedBox(height: 12),
               const Text(
                 'Không thể tải danh sách người dùng',
@@ -522,111 +528,129 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     final filteredUsers = _filteredUsers;
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Tìm theo họ tên hoặc email...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {
-                          _searchQuery = '';
-                        });
-                      },
-                      icon: const Icon(Icons.clear),
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
-              });
-            },
-          ),
-        ),
-
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              const Icon(Icons.people_alt, color: primaryColor),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Tổng số tài khoản: ${_users.length}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              IconButton(
-                tooltip: 'Làm mới',
-                onPressed: _loadUsers,
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
-          ),
-        ),
-
-        if (_isSuperAdmin)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Bạn có quyền quản lý User và Admin. '
-                'Tài khoản Super Admin được bảo vệ.',
-                style: TextStyle(fontSize: 12, color: Colors.deepOrange),
-              ),
-            ),
-          ),
-
-        const SizedBox(height: 8),
-
-        Expanded(
-          child: filteredUsers.isEmpty
-              ? Center(
-                  child: Text(
-                    _users.isEmpty
-                        ? 'Chưa có người dùng nào.'
-                        : 'Không tìm thấy người dùng phù hợp.',
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1000),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Tìm theo họ tên hoặc email...',
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: AppTheme.primary,
                   ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadUsers,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchQuery = '';
+                            });
+                          },
+                          icon: const Icon(Icons.close_rounded),
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 16,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.people_alt_rounded,
+                    color: AppTheme.primary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Tổng số tài khoản: ${_users.length}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                      ),
                     ),
-                    itemCount: filteredUsers.length,
-                    itemBuilder: (context, index) {
-                      return _buildUserCard(filteredUsers[index]);
-                    },
+                  ),
+                ],
+              ),
+            ),
+            if (_isSuperAdmin)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 4, 20, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Bạn có quyền quản lý User và Admin. Tài khoản Super Admin được bảo vệ.',
+                    style: TextStyle(fontSize: 12, color: Colors.deepOrange),
                   ),
                 ),
+              ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: filteredUsers.isEmpty
+                  ? Center(
+                      child: Text(
+                        _users.isEmpty
+                            ? 'Chưa có người dùng nào.'
+                            : 'Không tìm thấy người dùng phù hợp.',
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _loadUsers,
+                      color: AppTheme.primary,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                        itemCount: filteredUsers.length,
+                        itemBuilder: (BuildContext context, int index) {
+                          return _buildUserCard(filteredUsers[index]);
+                        },
+                      ),
+                    ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Text(
           _isSuperAdmin ? 'Quản lý người dùng và Admin' : 'Quản lý người dùng',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: primaryColor,
+        backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            tooltip: 'Tải lại',
+            onPressed: _loadUsers,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
       ),
       body: _buildBody(),
     );

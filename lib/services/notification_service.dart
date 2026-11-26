@@ -1,79 +1,63 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/notification_model.dart';
-import 'supabase_service.dart';
 
-/// Service quản lý Thông báo cá nhân và hệ thống.
 class NotificationService {
-  static SupabaseClient get _supabase => SupabaseService.client;
-  static String? get _currentUserId => FirebaseAuth.instance.currentUser?.uid;
+  static final SupabaseClient _supabase = Supabase.instance.client;
 
-  /// Lấy danh sách thông báo của người dùng hiện tại
-  static Future<List<NotificationModel>> getUserNotifications({int limit = 30}) async {
-    final uid = _currentUserId;
-    if (uid == null) return [];
+  /// Hàm gửi thông báo tổng quát tới một người dùng qua email
+  static Future<void> sendNotification({
+    required String receiverEmail,
+    required String title,
+    required String content,
+    String type = 'system', // 'rank', 'friend', 'room', 'system'
+  }) async {
+    final cleanEmail = receiverEmail.trim();
+    if (cleanEmail.isEmpty) return;
 
     try {
-      final response = await _supabase
-          .from('thong_bao')
-          .select()
-          .eq('nguoi_dung_id', uid)
-          .order('ngay_tao', ascending: false)
-          .limit(limit);
+      // Tìm nguoi_dung_id tương ứng (nếu có) để lưu đồng bộ
+      final userRow = await _supabase
+          .from('nguoi_dung')
+          .select('id')
+          .ilike('email', cleanEmail)
+          .maybeSingle();
 
-      return (response as List)
-          .map((item) => NotificationModel.fromJson(Map<String, dynamic>.from(item as Map)))
-          .toList();
-    } on PostgrestException catch (e) {
-      throw Exception('Lỗi tải thông báo: ${e.message}');
+      await _supabase.from('thong_bao').insert({
+        'nguoi_dung_id': userRow?['id'],
+        'nguoi_nhan_email': cleanEmail,
+        'tieu_de': title,
+        'noi_dung': content,
+        'loai': type,
+        'da_doc': false,
+      });
     } catch (e) {
-      throw Exception('Không thể tải thông báo: $e');
+      debugPrint('SEND NOTIFICATION ERROR: $e');
     }
   }
 
-  /// Đánh dấu một thông báo là đã đọc
-  static Future<void> markAsRead(String notificationId) async {
-    try {
-      await _supabase
-          .from('thong_bao')
-          .update({'da_doc': true})
-          .eq('id', notificationId);
-    } catch (e) {
-      // Bỏ qua lỗi ngầm để không ngắt trải nghiệm người dùng
-    }
+  /// Gửi thông báo khi có lời mời kết bạn mới
+  static Future<void> sendFriendRequest({
+    required String receiverEmail,
+    required String senderName,
+  }) async {
+    await sendNotification(
+      receiverEmail: receiverEmail,
+      title: 'Lời mời kết bạn mới',
+      content: '$senderName muốn kết bạn với bạn trên QuizMaster.',
+      type: 'friend',
+    );
   }
 
-  /// Đánh dấu tất cả thông báo của người dùng là đã đọc
-  static Future<void> markAllAsRead() async {
-    final uid = _currentUserId;
-    if (uid == null) return;
-
-    try {
-      await _supabase
-          .from('thong_bao')
-          .update({'da_doc': true})
-          .eq('nguoi_dung_id', uid)
-          .eq('da_doc', false);
-    } catch (e) {
-      throw Exception('Không thể cập nhật trạng thái thông báo: $e');
-    }
-  }
-
-  /// Đếm số thông báo chưa đọc
-  static Future<int> getUnreadCount() async {
-    final uid = _currentUserId;
-    if (uid == null) return 0;
-
-    try {
-      final count = await _supabase
-          .from('thong_bao')
-          .count(CountOption.exact)
-          .eq('nguoi_dung_id', uid)
-          .eq('da_doc', false);
-
-      return count;
-    } catch (e) {
-      return 0;
-    }
+  /// Gửi thông báo khi đối phương chấp nhận lời mời kết bạn
+  static Future<void> sendFriendAccepted({
+    required String receiverEmail,
+    required String accepterName,
+  }) async {
+    await sendNotification(
+      receiverEmail: receiverEmail,
+      title: 'Đã trở thành bạn bè',
+      content: '$accepterName đã chấp nhận lời mời kết bạn của bạn.',
+      type: 'friend',
+    );
   }
 }

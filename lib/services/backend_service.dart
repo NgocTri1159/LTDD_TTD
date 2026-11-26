@@ -1,4 +1,6 @@
-﻿import 'dart:io';
+﻿import 'dart:core';
+import 'dart:core' as core;
+import 'dart:io';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -7,35 +9,35 @@ import 'package:http_parser/http_parser.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class BackendService {
-  static final String baseUrl = kIsWeb
+  static final core.String baseUrl = kIsWeb
       ? 'http://localhost:3000'
       : (Platform.isAndroid ? 'http://10.0.2.2:3000' : 'http://localhost:3000');
 
   // Private helper to send request with Firebase ID Token
-  static Future<http.Response> _authorizedRequest(
-    String method,
-    String path, {
-    Object? body,
-    Map<String, String>? extraHeaders,
+  static core.Future<http.Response> _authorizedRequest(
+    core.String method,
+    core.String path, {
+    core.Object? body,
+    core.Map<core.String, core.String>? extraHeaders,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      throw Exception('User not signed in');
+      throw core.Exception('User not signed in');
     }
 
     final idToken = await user.getIdToken();
     if (idToken == null || idToken.isEmpty) {
-      throw Exception('Unable to obtain Firebase ID Token');
+      throw core.Exception('Unable to obtain Firebase ID Token');
     }
 
-    final headers = <String, String>{
+    final headers = <core.String, core.String>{
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $idToken',
     };
     if (extraHeaders != null) headers.addAll(extraHeaders);
 
-    final uri = Uri.parse('$baseUrl$path');
-    final Future<http.Response> requestFuture;
+    final uri = core.Uri.parse('$baseUrl$path');
+    final core.Future<http.Response> requestFuture;
 
     switch (method.toUpperCase()) {
       case 'GET':
@@ -51,60 +53,60 @@ class BackendService {
         requestFuture = http.patch(uri, headers: headers, body: body);
         break;
       default:
-        throw Exception('Unsupported HTTP method: $method');
+        throw core.Exception('Unsupported HTTP method: $method');
     }
 
-    return await requestFuture.timeout(const Duration(seconds: 15));
+    return await requestFuture.timeout(const core.Duration(seconds: 15));
   }
 
   // Public wrappers
-  static Future<http.Response> get(String path) =>
+  static core.Future<http.Response> get(core.String path) =>
       _authorizedRequest('GET', path);
 
-  static Future<http.Response> post(
-    String path, {
-    Object? body,
-    Map<String, String>? extraHeaders,
+  static core.Future<http.Response> post(
+    core.String path, {
+    core.Object? body,
+    core.Map<core.String, core.String>? extraHeaders,
   }) =>
       _authorizedRequest('POST', path, body: body, extraHeaders: extraHeaders);
 
-  static Future<http.Response> put(
-    String path, {
-    Object? body,
-    Map<String, String>? extraHeaders,
+  static core.Future<http.Response> put(
+    core.String path, {
+    core.Object? body,
+    core.Map<core.String, core.String>? extraHeaders,
   }) =>
       _authorizedRequest('PUT', path, body: body, extraHeaders: extraHeaders);
 
-  static Future<http.Response> patch(
-    String path, {
-    Object? body,
-    Map<String, String>? extraHeaders,
+  static core.Future<http.Response> patch(
+    core.String path, {
+    core.Object? body,
+    core.Map<core.String, core.String>? extraHeaders,
   }) =>
       _authorizedRequest('PATCH', path, body: body, extraHeaders: extraHeaders);
 
   // Upload ảnh hoặc âm thanh lên Supabase thông qua Backend API
-  static Future<Map<String, dynamic>> uploadFile({
+  static core.Future<core.Map<core.String, dynamic>> uploadFile({
     required Uint8List bytes,
-    required String filename,
-    required String mimeType,
+    required core.String filename,
+    required core.String mimeType,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      throw Exception('User not signed in');
+      throw core.Exception('User not signed in');
     }
 
     final idToken = await user.getIdToken();
 
     if (idToken == null || idToken.isEmpty) {
-      throw Exception('Unable to obtain Firebase ID Token');
+      throw core.Exception('Unable to obtain Firebase ID Token');
     }
 
     if (bytes.isEmpty) {
-      throw Exception('File không có dữ liệu');
+      throw core.Exception('File không có dữ liệu');
     }
 
-    final uri = Uri.parse('$baseUrl/api/questions/upload');
+    final uri = core.Uri.parse('$baseUrl/api/questions/upload');
 
     final request = http.MultipartRequest('POST', uri);
 
@@ -120,7 +122,7 @@ class BackendService {
     );
 
     final streamedResponse = await request.send().timeout(
-      const Duration(seconds: 60),
+      const core.Duration(seconds: 60),
     );
 
     final response = await http.Response.fromStream(streamedResponse);
@@ -128,31 +130,32 @@ class BackendService {
     debugPrint('UPLOAD STATUS: ${response.statusCode}');
     debugPrint('UPLOAD RESPONSE: ${response.body}');
 
-    final Map<String, dynamic> result;
+    final core.Map<core.String, dynamic> result;
 
     try {
-      result = jsonDecode(response.body) as Map<String, dynamic>;
+      result = jsonDecode(response.body) as core.Map<core.String, dynamic>;
     } catch (_) {
-      throw Exception('Phản hồi upload không hợp lệ');
+      throw core.Exception('Phản hồi upload không hợp lệ');
     }
 
     if (response.statusCode != 201 || result['success'] != true) {
-      throw Exception(
+      throw core.Exception(
         result['message'] ?? 'Upload file thất bại',
       );
     }
 
-    return Map<String, dynamic>.from(result['file'] as Map);
+    return core.Map<core.String, dynamic>.from(result['file'] as core.Map);
   }
+
   // Existing provisionRole, now using shared post helper
-  static Future<void> provisionRole() async {
+  static core.Future<void> provisionRole() async {
     final response = await post('/auth/provision-role');
     debugPrint('BACKEND STATUS: ${response.statusCode}');
     debugPrint('BACKEND RESPONSE: ${response.body}');
 
     final result = jsonDecode(response.body);
     if (response.statusCode != 200 || result['success'] != true) {
-      throw Exception(result['message'] ?? 'KhÃ´ng thá»ƒ cáº¥p quyá»n tÃ i khoáº£n');
+      throw core.Exception(result['message'] ?? 'Không thể cấp quyền tài khoản');
     }
 
     // Refresh token and verify claims
@@ -168,7 +171,7 @@ class BackendService {
       debugPrint('============================================');
 
       if (tokenResult.claims?['role'] != 'authenticated') {
-        throw Exception('TÃ i khoáº£n chÆ°a nháº­n Ä‘Æ°á»£c quyá»n authenticated');
+        throw core.Exception('Tài khoản chưa nhận được quyền authenticated');
       }
 
       debugPrint('CAP QUYEN THANH CONG!');
@@ -176,11 +179,83 @@ class BackendService {
   }
 
   // Method to check current user via backend
-  static Future<void> checkCurrentUser() async {
+  static core.Future<void> checkCurrentUser() async {
     final response = await get('/api/auth/me');
     debugPrint('CHECK /api/auth/me STATUS: ${response.statusCode}');
     debugPrint('BODY: ${response.body}');
   }
+
+  // =========================
+  // QUÊN MẬT KHẨU QUA EMAIL OTP (KHÔNG CẦN TOKEN ĐĂNG NHẬP)
+  // =========================
+  static core.Future<void> sendResetOtp(core.String email) async {
+    final response = await http
+        .post(
+          core.Uri.parse('$baseUrl/api/auth/send-reset-otp'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': email.trim()}),
+        )
+        .timeout(const core.Duration(seconds: 20));
+
+    core.Map<core.String, dynamic> data = {};
+    try {
+      data = jsonDecode(response.body) as core.Map<core.String, dynamic>;
+    } catch (_) {}
+
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw core.Exception(data['message'] ?? 'Không thể gửi mã xác nhận.');
+    }
+  }
+
+  static core.Future<void> verifyResetOtp({
+    required core.String email,
+    required core.String otp,
+  }) async {
+    final response = await http
+        .post(
+          core.Uri.parse('$baseUrl/api/auth/verify-reset-otp'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'email': email.trim(),
+            'otp': otp.trim(),
+          }),
+        )
+        .timeout(const core.Duration(seconds: 15));
+
+    core.Map<core.String, dynamic> data = {};
+    try {
+      data = jsonDecode(response.body) as core.Map<core.String, dynamic>;
+    } catch (_) {}
+
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw core.Exception(data['message'] ?? 'Mã xác nhận không đúng.');
+    }
+  }
+
+  static core.Future<void> resetPasswordWithOtp({
+    required core.String email,
+    required core.String otp,
+    required core.String newPassword,
+  }) async {
+    final response = await http
+        .post(
+          core.Uri.parse('$baseUrl/api/auth/reset-password-with-otp'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'email': email.trim(),
+            'otp': otp.trim(),
+            'newPassword': newPassword,
+          }),
+        )
+        .timeout(const core.Duration(seconds: 15));
+
+    core.Map<core.String, dynamic> data = {};
+    try {
+      data = jsonDecode(response.body) as core.Map<core.String, dynamic>;
+    } catch (_) {}
+
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw core.Exception(data['message'] ?? 'Không thể đặt lại mật khẩu.');
+    }
+  }
 }
-
-

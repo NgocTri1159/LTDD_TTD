@@ -78,6 +78,21 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  /// Đăng nhập bằng tài khoản Google.
+  Future<AuthActionResult> loginWithGoogle() async {
+    _setLoading(true);
+    try {
+      await _authService.loginWithGoogle();
+      return const AuthActionResult.success('Đăng nhập Google thành công!');
+    } on FirebaseAuthException catch (error) {
+      return AuthActionResult.failure(_googleLoginErrorMessage(error));
+    } catch (error) {
+      return AuthActionResult.failure('Đăng nhập Google thất bại: $error');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   /// Đăng ký Firebase, cấp claim, đồng bộ hồ sơ Supabase và gửi email xác minh.
   Future<AuthActionResult> register({
     required String fullName,
@@ -233,6 +248,22 @@ class AuthController extends ChangeNotifier {
         return 'Bạn thử quá nhiều lần. Vui lòng thử lại sau.';
       default:
         return error.message ?? 'Đăng nhập thất bại.';
+    }
+  }
+
+  String _googleLoginErrorMessage(FirebaseAuthException error) {
+    switch (error.code) {
+      case 'popup-closed-by-user':
+      case 'cancelled-popup-request':
+        return 'Bạn đã hủy cửa sổ đăng nhập Google.';
+      case 'popup-blocked':
+        return 'Trình duyệt đã chặn cửa sổ bật lên. Vui lòng cho phép popup và thử lại.';
+      case 'account-exists-with-different-credential':
+        return 'Email này đã được đăng ký bằng phương thức đăng nhập khác.';
+      case 'user-disabled':
+        return 'Tài khoản này đã bị vô hiệu hóa.';
+      default:
+        return error.message ?? 'Đăng nhập Google thất bại.';
     }
   }
 

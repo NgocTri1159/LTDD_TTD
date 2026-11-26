@@ -1,4 +1,3 @@
-
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
@@ -7,6 +6,7 @@ import '../../models/question_model.dart';
 import '../../models/subject_model.dart';
 import '../../services/admin_service.dart';
 import '../../services/question_media_service.dart';
+import '../../theme/app_theme.dart';
 
 class AdminQuestionFormScreen extends StatefulWidget {
   const AdminQuestionFormScreen({super.key});
@@ -17,9 +17,6 @@ class AdminQuestionFormScreen extends StatefulWidget {
 }
 
 class _AdminQuestionFormScreenState extends State<AdminQuestionFormScreen> {
-  static const Color primaryColor = Color(0xFF6257E8);
-
-  // ID loại câu hỏi mot_dap_an trong Supabase.
   static const String questionTypeId = '112ab3f4-f6f5-4754-97c1-fe27f900c5ea';
 
   final _formKey = GlobalKey<FormState>();
@@ -204,7 +201,7 @@ class _AdminQuestionFormScreenState extends State<AdminQuestionFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Thêm câu hỏi thành công'),
-          backgroundColor: Colors.green,
+          backgroundColor: AppTheme.success,
         ),
       );
 
@@ -215,7 +212,7 @@ class _AdminQuestionFormScreenState extends State<AdminQuestionFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Không thể lưu câu hỏi: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppTheme.error,
         ),
       );
     } finally {
@@ -225,18 +222,64 @@ class _AdminQuestionFormScreenState extends State<AdminQuestionFormScreen> {
     }
   }
 
-  Widget _buildSectionTitle(String title, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12, top: 20),
-      child: Row(
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: primaryColor),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          Row(
+            children: [
+              Icon(icon, color: AppTheme.primary, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: 16),
+          ...children,
         ],
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({
+    required String label,
+    String? hint,
+    IconData? prefixIcon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      alignLabelWithHint: true,
+      prefixIcon: prefixIcon != null
+          ? Icon(prefixIcon, color: AppTheme.primary)
+          : null,
+      filled: true,
+      fillColor: AppTheme.background,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
       ),
     );
   }
@@ -245,10 +288,9 @@ class _AdminQuestionFormScreenState extends State<AdminQuestionFormScreen> {
     return DropdownButtonFormField<String>(
       initialValue: _selectedSubjectId,
       isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Môn học',
-        prefixIcon: Icon(Icons.menu_book_outlined),
-        border: OutlineInputBorder(),
+      decoration: _inputDecoration(
+        label: 'Môn học *',
+        prefixIcon: Icons.menu_book_outlined,
       ),
       items: subjects.map((subject) {
         return DropdownMenuItem<String>(
@@ -271,10 +313,9 @@ class _AdminQuestionFormScreenState extends State<AdminQuestionFormScreen> {
   Widget _buildDifficultyDropdown() {
     return DropdownButtonFormField<String>(
       initialValue: _difficulty,
-      decoration: const InputDecoration(
-        labelText: 'Mức độ',
-        prefixIcon: Icon(Icons.tune),
-        border: OutlineInputBorder(),
+      decoration: _inputDecoration(
+        label: 'Mức độ',
+        prefixIcon: Icons.tune_rounded,
       ),
       items: const [
         DropdownMenuItem(value: 'de', child: Text('Dễ')),
@@ -289,7 +330,6 @@ class _AdminQuestionFormScreenState extends State<AdminQuestionFormScreen> {
     );
   }
 
-  // RadioGroup quản lý đáp án đúng theo API Flutter mới.
   Widget _buildAnswers() {
     return RadioGroup<int>(
       groupValue: _correctAnswerIndex,
@@ -303,57 +343,69 @@ class _AdminQuestionFormScreenState extends State<AdminQuestionFormScreen> {
           final letter = String.fromCharCode(65 + index);
           final isCorrect = _correctAnswerIndex == index;
 
-          return Card(
+          return Container(
             margin: const EdgeInsets.only(bottom: 10),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Radio<int>(
-                    value: index,
-                    activeColor: Colors.green,
-                  ),
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: isCorrect
-                        ? Colors.green.withValues(alpha: 0.12)
-                        : Colors.grey.withValues(alpha: 0.12),
-                    child: Text(
-                      letter,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isCorrect ? Colors.green : Colors.grey,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _answerControllers[index],
-                      decoration: InputDecoration(
-                        labelText: 'Đáp án $letter',
-                        border: const OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Vui lòng nhập đáp án $letter';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  if (isCorrect)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 8),
-                      child: Icon(
-                        Icons.check_circle,
-                        color: Colors.green,
-                      ),
-                    ),
-                ],
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isCorrect
+                  ? AppTheme.success.withValues(alpha: 0.06)
+                  : AppTheme.background,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isCorrect ? AppTheme.success : AppTheme.cardBorder,
               ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Radio<int>(
+                  value: index,
+                  activeColor: AppTheme.success,
+                ),
+                CircleAvatar(
+                  radius: 15,
+                  backgroundColor: isCorrect
+                      ? AppTheme.success.withValues(alpha: 0.15)
+                      : Colors.grey.withValues(alpha: 0.15),
+                  child: Text(
+                    letter,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isCorrect ? AppTheme.success : Colors.grey,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextFormField(
+                    controller: _answerControllers[index],
+                    decoration: InputDecoration(
+                      labelText: 'Đáp án $letter',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                      isDense: true,
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Vui lòng nhập đáp án $letter';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                if (isCorrect)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 8),
+                    child: Icon(
+                      Icons.check_circle_rounded,
+                      color: AppTheme.success,
+                    ),
+                  ),
+              ],
             ),
           );
         }),
@@ -367,6 +419,13 @@ class _AdminQuestionFormScreenState extends State<AdminQuestionFormScreen> {
       children: [
         OutlinedButton.icon(
           onPressed: _uploadingImage || _saving ? null : _pickImage,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppTheme.primary,
+            side: const BorderSide(color: AppTheme.primary),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
           icon: _uploadingImage
               ? const SizedBox(
                   width: 18,
@@ -377,28 +436,38 @@ class _AdminQuestionFormScreenState extends State<AdminQuestionFormScreen> {
           label: Text(_uploadingImage ? 'Đang upload ảnh...' : 'Chọn hình ảnh'),
         ),
         if (_imageUrl != null) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
             child: Image.network(
               _imageUrl!,
               height: 160,
               width: double.infinity,
               fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
+              errorBuilder: (_, _, _) {
                 return const Text('Không thể hiển thị hình ảnh');
               },
             ),
           ),
           TextButton.icon(
             onPressed: _saving ? null : () => setState(() => _imageUrl = null),
-            icon: const Icon(Icons.delete_outline),
-            label: const Text('Xóa hình ảnh'),
+            icon: const Icon(Icons.delete_outline, color: AppTheme.error),
+            label: const Text(
+              'Xóa hình ảnh',
+              style: TextStyle(color: AppTheme.error),
+            ),
           ),
         ],
         const Divider(height: 28),
         OutlinedButton.icon(
           onPressed: _uploadingAudio || _saving ? null : _pickAudio,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppTheme.primary,
+            side: const BorderSide(color: AppTheme.primary),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
           icon: _uploadingAudio
               ? const SizedBox(
                   width: 18,
@@ -411,10 +480,10 @@ class _AdminQuestionFormScreenState extends State<AdminQuestionFormScreen> {
           ),
         ),
         if (_audioUrl != null) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Row(
             children: [
-              const Icon(Icons.check_circle, color: Colors.green),
+              const Icon(Icons.check_circle, color: AppTheme.success),
               const SizedBox(width: 8),
               const Expanded(child: Text('Đã upload âm thanh thành công')),
               IconButton(
@@ -422,7 +491,7 @@ class _AdminQuestionFormScreenState extends State<AdminQuestionFormScreen> {
                 onPressed: _saving
                     ? null
                     : () => setState(() => _audioUrl = null),
-                icon: const Icon(Icons.delete_outline),
+                icon: const Icon(Icons.delete_outline, color: AppTheme.error),
               ),
             ],
           ),
@@ -434,168 +503,199 @@ class _AdminQuestionFormScreenState extends State<AdminQuestionFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Thêm câu hỏi'),
-        backgroundColor: primaryColor,
+        title: const Text(
+          'Thêm câu hỏi mới',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
       ),
-      body: FutureBuilder<List<SubjectModel>>(
-        future: _subjectsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: FutureBuilder<List<SubjectModel>>(
+            future: _subjectsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  'Không thể tải danh sách môn học:\n${snapshot.error}',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          }
-
-          final subjects = snapshot.data ?? [];
-
-          if (subjects.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  'Chưa có môn học. Vui lòng tạo môn học trước.',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          }
-
-          return Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionTitle('Thông tin câu hỏi', Icons.quiz_outlined),
-                  TextFormField(
-                    controller: _contentController,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'Nội dung câu hỏi',
-                      hintText: 'Nhập nội dung câu hỏi...',
-                      alignLabelWithHint: true,
-                      border: OutlineInputBorder(),
+              if (snapshot.hasError) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Không thể tải danh sách môn học:\n${snapshot.error}',
+                      textAlign: TextAlign.center,
                     ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Vui lòng nhập nội dung câu hỏi';
-                      }
-                      return null;
-                    },
                   ),
-                  const SizedBox(height: 16),
-                  _buildSubjectDropdown(subjects),
-                  const SizedBox(height: 16),
-                  _buildDifficultyDropdown(),
+                );
+              }
 
-                  _buildSectionTitle('Điểm và thời gian', Icons.timer_outlined),
-                  Row(
+              final subjects = snapshot.data ?? [];
+
+              if (subjects.isEmpty) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text(
+                      'Chưa có môn học. Vui lòng tạo môn học trước.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                );
+              }
+
+              return Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _pointController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                              RegExp(r'[0-9.]'),
+                      _buildSectionCard(
+                        title: 'Thông tin câu hỏi',
+                        icon: Icons.quiz_outlined,
+                        children: [
+                          TextFormField(
+                            controller: _contentController,
+                            maxLines: 4,
+                            decoration: _inputDecoration(
+                              label: 'Nội dung câu hỏi *',
+                              hint: 'Nhập nội dung câu hỏi...',
                             ),
-                          ],
-                          decoration: const InputDecoration(
-                            labelText: 'Điểm',
-                            border: OutlineInputBorder(),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Vui lòng nhập nội dung câu hỏi';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          _buildSubjectDropdown(subjects),
+                          const SizedBox(height: 16),
+                          _buildDifficultyDropdown(),
+                        ],
+                      ),
+
+                      _buildSectionCard(
+                        title: 'Điểm và thời gian',
+                        icon: Icons.timer_outlined,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _pointController,
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(
+                                      RegExp(r'[0-9.]'),
+                                    ),
+                                  ],
+                                  decoration: _inputDecoration(label: 'Điểm'),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _durationController,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  decoration: _inputDecoration(
+                                    label: 'Thời gian (giây)',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+
+                      _buildSectionCard(
+                        title: 'Danh sách đáp án',
+                        icon: Icons.checklist_rounded,
+                        children: [
+                          const Text(
+                            'Chọn nút tròn bên cạnh đáp án để đánh dấu đáp án đúng.',
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildAnswers(),
+                        ],
+                      ),
+
+                      _buildSectionCard(
+                        title: 'Giải thích đáp án',
+                        icon: Icons.lightbulb_outline,
+                        children: [
+                          TextFormField(
+                            controller: _explanationController,
+                            maxLines: 3,
+                            decoration: _inputDecoration(
+                              label: 'Lời giải thích',
+                              hint: 'Nhập lời giải thích (không bắt buộc)...',
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      _buildSectionCard(
+                        title: 'Hình ảnh và âm thanh',
+                        icon: Icons.perm_media_outlined,
+                        children: [_buildMediaSection()],
+                      ),
+
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          onPressed:
+                              _saving || _uploadingImage || _uploadingAudio
+                              ? null
+                              : _saveQuestion,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          icon: _saving
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.save_outlined),
+                          label: Text(
+                            _saving ? 'Đang lưu...' : 'LƯU CÂU HỎI',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _durationController,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          decoration: const InputDecoration(
-                            labelText: 'Thời gian (giây)',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
+                      const SizedBox(height: 24),
                     ],
                   ),
-
-                  _buildSectionTitle('Danh sách đáp án', Icons.checklist),
-                  const Text(
-                    'Chọn nút tròn bên cạnh đáp án để đánh dấu đáp án đúng.',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildAnswers(),
-
-                  _buildSectionTitle(
-                    'Giải thích đáp án',
-                    Icons.lightbulb_outline,
-                  ),
-                  TextFormField(
-                    controller: _explanationController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      hintText: 'Nhập lời giải thích (không bắt buộc)...',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-
-                  _buildSectionTitle(
-                    'Hình ảnh và âm thanh',
-                    Icons.perm_media_outlined,
-                  ),
-                  _buildMediaSection(),
-
-                  const SizedBox(height: 28),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      onPressed: _saving || _uploadingImage || _uploadingAudio
-                          ? null
-                          : _saveQuestion,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        foregroundColor: Colors.white,
-                      ),
-                      icon: _saving
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.save_outlined),
-                      label: Text(_saving ? 'Đang lưu...' : 'LƯU CÂU HỎI'),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-          );
-        },
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
