@@ -82,44 +82,6 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 
-  Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: InkWell(
-          onTap: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            }
-          },
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE3E6FA)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.arrow_back_rounded,
-              color: darkText,
-              size: 20,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildBrandLogo() {
     return Column(
       children: [
@@ -235,8 +197,7 @@ class _LoginViewState extends State<LoginView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _buildTopBar(),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 28),
                           _buildBrandLogo(),
                           const SizedBox(height: 16),
 

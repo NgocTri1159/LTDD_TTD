@@ -1,10 +1,10 @@
+import 'dart:async';
 import 'dart:core';
 import 'dart:core' as core;
-import 'dart:async';
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
-import '../../services/backend_service.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../services/auth_service.dart';
+import '../../services/backend_service.dart';
 import '../../services/role_service.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -25,8 +25,10 @@ class ChangePasswordScreen extends StatefulWidget {
 
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   static const Color primaryPurple = Color(0xFF565CEB);
-  static const Color pageBg = Color(0xFFF4F5FF);
-  static const Color darkNavy = Color(0xFF1A1D3B);
+  static const Color cardLavender = Color(0xFFECEEFF);
+  static const Color accentOrange = Color(0xFFF79E1B);
+  static const Color pageBg = Color(0xFFF9FAFF);
+  static const Color darkNavy = Color(0xFF1E1E2C);
 
   final AuthService _authService = AuthService();
 
@@ -61,6 +63,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   int _resendSeconds = 0;
   Timer? _resendTimer;
   String? _verifiedOtpCode;
+
+  bool get _hasLoggedInEmail =>
+      (_authService.currentUser?.email ?? '').trim().isNotEmpty;
 
   @override
   void initState() {
@@ -128,6 +133,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         backgroundColor:
             isError ? const Color(0xFFE53935) : const Color(0xFF2E7D32),
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
   }
@@ -311,6 +319,16 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     }
   }
 
+  String get _subtitleText {
+    if (_stepIndex == 0) {
+      return 'Nhập mật khẩu hiện tại để thiết lập mật khẩu mới an toàn hơn';
+    }
+    if (_stepIndex == 1) {
+      return 'Nhập Email đã đăng ký để nhận mã xác nhận 4 chữ số';
+    }
+    return 'Tạo mật khẩu mới có ít nhất 6 ký tự cho tài khoản của bạn';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Localizations.override(
@@ -321,32 +339,29 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       ],
       child: Scaffold(
         backgroundColor: pageBg,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            onPressed: _isLoading ? null : _handleBack,
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: darkNavy,
+              size: 24,
+            ),
+          ),
+        ),
         body: SafeArea(
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 440),
               child: SingleChildScrollView(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                    const EdgeInsets.symmetric(horizontal: 26, vertical: 8),
                 child: Column(
                   children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: IconButton(
-                        onPressed: _isLoading ? null : _handleBack,
-                        icon: const Icon(
-                          Icons.arrow_back_rounded,
-                          color: Colors.black87,
-                          size: 26,
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
                     _buildBrandHeader(),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
 
                     Text(
                       _stepIndex == 0 ? 'Đổi mật khẩu' : 'Đặt lại mật khẩu',
@@ -356,12 +371,29 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                         color: darkNavy,
                       ),
                     ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _subtitleText,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF666A86),
+                        height: 1.4,
+                      ),
+                    ),
 
-                    const SizedBox(height: 28),
+                    if (_stepIndex != 0) ...[
+                      const SizedBox(height: 16),
+                      _buildStepIndicator(),
+                    ],
+
+                    const SizedBox(height: 24),
 
                     if (_stepIndex == 0) _buildDirectChangeForm(),
                     if (_stepIndex == 1) _buildOtpEmailForm(),
                     if (_stepIndex == 2) _buildNewPasswordAfterOtpForm(),
+
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
@@ -372,20 +404,83 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 
+  Widget _buildStepIndicator() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildStepChip(step: 1, label: 'Xác thực OTP', active: _stepIndex >= 1),
+        Container(
+          width: 24,
+          height: 2,
+          margin: const EdgeInsets.symmetric(horizontal: 6),
+          color: _stepIndex == 2 ? primaryPurple : const Color(0xFFD8DCF5),
+        ),
+        _buildStepChip(step: 2, label: 'Mật khẩu mới', active: _stepIndex == 2),
+      ],
+    );
+  }
+
+  Widget _buildStepChip({
+    required int step,
+    required String label,
+    required bool active,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: active ? cardLavender : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: active ? primaryPurple : const Color(0xFFE0E3F5),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 9,
+            backgroundColor: active ? primaryPurple : Colors.grey.shade400,
+            child: Text(
+              '$step',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10.5,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: active ? primaryPurple : Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBrandHeader() {
     return Image.asset(
       'assets/images/logo.png',
-      height: 118,
+      height: 104,
       fit: BoxFit.contain,
       errorBuilder: (_, _, _) {
         return Column(
           children: [
             Container(
-              width: 78,
-              height: 78,
+              width: 74,
+              height: 74,
               decoration: BoxDecoration(
-                color: primaryPurple,
-                borderRadius: BorderRadius.circular(24),
+                gradient: const LinearGradient(
+                  colors: [primaryPurple, Color(0xFF757BFF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(22),
                 boxShadow: [
                   BoxShadow(
                     color: primaryPurple.withValues(alpha: 0.25),
@@ -395,19 +490,29 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ],
               ),
               child: const Icon(
-                Icons.school_rounded,
+                Icons.quiz_rounded,
                 color: Colors.white,
-                size: 42,
+                size: 40,
               ),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Fhasarid',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w900,
-                color: darkNavy,
-                letterSpacing: -0.5,
+            const SizedBox(height: 10),
+            RichText(
+              text: const TextSpan(
+                style: TextStyle(
+                  fontSize: 25,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.4,
+                ),
+                children: [
+                  TextSpan(
+                    text: 'Quiz',
+                    style: TextStyle(color: darkNavy),
+                  ),
+                  TextSpan(
+                    text: 'Master',
+                    style: TextStyle(color: accentOrange),
+                  ),
+                ],
               ),
             ),
           ],
@@ -427,12 +532,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           hintText: 'Email',
           prefixIcon: Icons.mail_outline_rounded,
           keyboardType: TextInputType.emailAddress,
+          readOnly: _hasLoggedInEmail,
         ),
         const SizedBox(height: 14),
         _buildPillInput(
           controller: _oldPassController,
           hintText: 'Nhập mật khẩu cũ',
-          prefixIcon: Icons.password_rounded,
+          prefixIcon: Icons.lock_outline_rounded,
           obscureText: _obscureOld,
           onToggleObscure: () => setState(() => _obscureOld = !_obscureOld),
         ),
@@ -440,25 +546,25 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         _buildPillInput(
           controller: _newPassController,
           hintText: 'Nhập mật khẩu mới',
-          prefixIcon: Icons.password_rounded,
+          prefixIcon: Icons.vpn_key_outlined,
           obscureText: _obscureNew,
           onToggleObscure: () => setState(() => _obscureNew = !_obscureNew),
         ),
         const SizedBox(height: 14),
         _buildPillInput(
           controller: _confirmPassController,
-          hintText: 'Xác nhận mật khẩu',
-          prefixIcon: Icons.password_rounded,
+          hintText: 'Xác nhận mật khẩu mới',
+          prefixIcon: Icons.check_circle_outline_rounded,
           obscureText: _obscureConfirm,
           onToggleObscure: () =>
               setState(() => _obscureConfirm = !_obscureConfirm),
         ),
         const SizedBox(height: 26),
         _buildPrimaryPillButton(
-          label: 'Đổi mật khẩu',
+          label: 'Cập nhật mật khẩu',
           onPressed: _submitChangePassword,
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
         TextButton(
           onPressed: _isLoading
               ? null
@@ -485,13 +591,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     return Column(
       children: [
         Container(
-          height: 50,
+          height: 52,
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(25),
+            color: _hasLoggedInEmail ? const Color(0xFFF1F3FA) : Colors.white,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: const Color(0xFFE5E8F8)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -509,8 +616,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               Expanded(
                 child: TextField(
                   controller: _otpEmailController,
+                  readOnly: _hasLoggedInEmail,
                   keyboardType: TextInputType.emailAddress,
-                  style: const TextStyle(fontSize: 14, color: darkNavy),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _hasLoggedInEmail
+                        ? const Color(0xFF5D617A)
+                        : darkNavy,
+                  ),
                   decoration: const InputDecoration(
                     hintText: 'Nhập Email',
                     hintStyle: TextStyle(color: Colors.grey, fontSize: 13.5),
@@ -520,22 +633,22 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ),
               ),
               SizedBox(
-                height: 50,
+                height: 52,
                 child: ElevatedButton(
                   onPressed: (_resendSeconds > 0 || _isLoading)
                       ? null
                       : _handleSendOtp,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryPurple,
+                    backgroundColor: accentOrange,
                     foregroundColor: Colors.white,
                     disabledBackgroundColor:
-                        primaryPurple.withValues(alpha: 0.55),
+                        accentOrange.withValues(alpha: 0.55),
                     disabledForegroundColor: Colors.white,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
                     shape: const RoundedRectangleBorder(
                       borderRadius: BorderRadius.horizontal(
-                        right: Radius.circular(25),
+                        right: Radius.circular(26),
                       ),
                     ),
                   ),
@@ -552,21 +665,22 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           ),
         ),
 
-        const SizedBox(height: 26),
+        const SizedBox(height: 24),
 
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: core.List.generate(4, (index) {
             return Container(
-              width: 54,
-              height: 58,
+              width: 56,
+              height: 60,
               margin: EdgeInsets.only(right: index < 3 ? 12 : 0),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE3E6FA)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -581,7 +695,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 maxLength: 1,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 style: const TextStyle(
-                  fontSize: 20,
+                  fontSize: 21,
                   fontWeight: FontWeight.bold,
                   color: darkNavy,
                 ),
@@ -604,7 +718,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         const SizedBox(height: 28),
 
         _buildPrimaryPillButton(
-          label: 'Đổi mật khẩu',
+          label: 'Xác nhận & Tiếp tục',
           onPressed: _handleVerifyOtpAndNext,
         ),
 
@@ -639,7 +753,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         _buildPillInput(
           controller: _resetNewPassController,
           hintText: 'Nhập mật khẩu mới',
-          prefixIcon: Icons.password_rounded,
+          prefixIcon: Icons.vpn_key_outlined,
           obscureText: _obscureResetNew,
           onToggleObscure: () =>
               setState(() => _obscureResetNew = !_obscureResetNew),
@@ -647,15 +761,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         const SizedBox(height: 14),
         _buildPillInput(
           controller: _resetConfirmPassController,
-          hintText: 'Xác nhận mật khẩu',
-          prefixIcon: Icons.password_rounded,
+          hintText: 'Xác nhận mật khẩu mới',
+          prefixIcon: Icons.check_circle_outline_rounded,
           obscureText: _obscureResetConfirm,
           onToggleObscure: () =>
               setState(() => _obscureResetConfirm = !_obscureResetConfirm),
         ),
         const SizedBox(height: 26),
         _buildPrimaryPillButton(
-          label: 'Đổi mật khẩu',
+          label: 'Đặt lại mật khẩu',
           onPressed: _submitResetNewPassword,
         ),
       ],
@@ -670,17 +784,19 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     required String hintText,
     required IconData prefixIcon,
     bool obscureText = false,
+    bool readOnly = false,
     VoidCallback? onToggleObscure,
     TextInputType keyboardType = TextInputType.text,
   }) {
     return Container(
-      height: 50,
+      height: 52,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
+        color: readOnly ? const Color(0xFFF1F3FA) : Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: const Color(0xFFE5E8F8)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -690,24 +806,34 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       child: TextField(
         controller: controller,
         obscureText: obscureText,
+        readOnly: readOnly,
         keyboardType: keyboardType,
-        style: const TextStyle(fontSize: 14, color: darkNavy),
+        style: TextStyle(
+          fontSize: 14,
+          color: readOnly ? const Color(0xFF5D617A) : darkNavy,
+        ),
         decoration: InputDecoration(
           hintText: hintText,
           hintStyle: const TextStyle(color: Colors.grey, fontSize: 13.5),
           prefixIcon: Icon(prefixIcon, color: Colors.grey, size: 20),
-          suffixIcon: onToggleObscure != null
-              ? IconButton(
-                  onPressed: onToggleObscure,
-                  icon: Icon(
-                    obscureText
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    color: Colors.grey,
-                    size: 19,
-                  ),
+          suffixIcon: readOnly
+              ? const Icon(
+                  Icons.lock_outline_rounded,
+                  color: Colors.grey,
+                  size: 18,
                 )
-              : null,
+              : (onToggleObscure != null
+                  ? IconButton(
+                      onPressed: onToggleObscure,
+                      icon: Icon(
+                        obscureText
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: Colors.grey,
+                        size: 19,
+                      ),
+                    )
+                  : null),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 14),
         ),
@@ -721,16 +847,16 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }) {
     return SizedBox(
       width: double.infinity,
-      height: 48,
+      height: 50,
       child: ElevatedButton(
         onPressed: _isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryPurple,
           foregroundColor: Colors.white,
-          elevation: 3,
+          elevation: 2,
           shadowColor: primaryPurple.withValues(alpha: 0.35),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(25),
           ),
         ),
         child: _isLoading

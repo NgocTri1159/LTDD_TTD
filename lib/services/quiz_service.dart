@@ -1,5 +1,6 @@
-
 import 'dart:convert';
+import 'dart:core';
+import 'dart:core' as core;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,7 +12,7 @@ import '../models/quiz_submission_result_model.dart';
 import 'backend_service.dart';
 import 'supabase_service.dart';
 
-/// Service quản lý quá trình thi, nộp bài và lịch sử làm bài.
+/// Service quản lý quá trình thi, nộp bài, lịch sử làm bài và tạo bộ đề.
 class QuizService {
   static SupabaseClient get _supabase => SupabaseService.client;
 
@@ -19,20 +20,20 @@ class QuizService {
       FirebaseAuth.instance.currentUser?.uid;
 
   /// Đọc và kiểm tra phản hồi JSON từ Backend.
-  static Map<String, dynamic> _parseBackendResponse(
+  static core.Map<String, dynamic> _parseBackendResponse(
     dynamic response,
     String defaultMessage,
   ) {
-    Map<String, dynamic> result;
+    core.Map<String, dynamic> result;
 
     try {
       final decoded = jsonDecode(response.body);
 
-      if (decoded is! Map) {
+      if (decoded is! core.Map) {
         throw const FormatException('Invalid response');
       }
 
-      result = Map<String, dynamic>.from(decoded);
+      result = core.Map<String, dynamic>.from(decoded);
     } catch (_) {
       throw Exception('Phản hồi từ Backend không hợp lệ.');
     }
@@ -49,17 +50,17 @@ class QuizService {
   }
 
   /// Lấy danh sách các chế độ chơi đang mở.
-  static Future<List<GameModeModel>> getActiveGameModes() async {
+  static core.Future<core.List<GameModeModel>> getActiveGameModes() async {
     try {
       final response = await _supabase
           .from('che_do_choi')
           .select()
           .eq('trang_thai', true);
 
-      return (response as List)
+      return (response as core.List)
           .map(
             (item) => GameModeModel.fromJson(
-              Map<String, dynamic>.from(item as Map),
+              core.Map<String, dynamic>.from(item as core.Map),
             ),
           )
           .toList();
@@ -71,7 +72,7 @@ class QuizService {
   }
 
   /// Khởi tạo lượt làm bài thông qua Backend.
-  static Future<QuizAttemptModel> startAttempt({
+  static core.Future<QuizAttemptModel> startAttempt({
     required String examId,
     required String gameModeId,
     String? roomId,
@@ -80,7 +81,6 @@ class QuizService {
       throw Exception('Bạn chưa đăng nhập.');
     }
 
-    // Backend hiện chưa hỗ trợ phòng thi trong API start.
     if (roomId != null && roomId.isNotEmpty) {
       throw Exception(
         'API bắt đầu thi hiện chưa hỗ trợ tham số roomId.',
@@ -103,18 +103,16 @@ class QuizService {
 
       final data = result['data'];
 
-      if (data is! Map || data['attempt'] is! Map) {
+      if (data is! core.Map || data['attempt'] is! core.Map) {
         throw Exception(
           'Backend không trả về thông tin lượt thi hợp lệ.',
         );
       }
 
-      final attemptJson = Map<String, dynamic>.from(
-        data['attempt'] as Map,
+      final attemptJson = core.Map<String, dynamic>.from(
+        data['attempt'] as core.Map,
       );
 
-      // Backend không trả nguoi_dung_id trong attempt.
-      // Lấy UID từ Firebase Auth hiện tại để hoàn thiện model.
       attemptJson['nguoi_dung_id'] = _currentUserId;
 
       return QuizAttemptModel.fromJson(attemptJson);
@@ -124,47 +122,40 @@ class QuizService {
   }
 
   /// Nộp bài thông qua Backend.
-  ///
-  /// Backend tự chấm điểm và tự tính thời gian.
-  /// questionDetails vẫn giữ cấu trúc cũ để thuận tiện tích hợp
-  /// với màn hình làm bài hiện tại.
-  static Future<QuizSubmissionResultModel> submitAttempt({
+  static core.Future<QuizSubmissionResultModel> submitAttempt({
     required String attemptId,
     required int timeSpentSeconds,
     required double totalScore,
     required int correctCount,
     required int wrongCount,
     required int totalQuestions,
-    required List<Map<String, dynamic>> questionDetails,
+    required core.List<core.Map<String, dynamic>> questionDetails,
   }) async {
     if (_currentUserId == null) {
       throw Exception('Bạn chưa đăng nhập.');
     }
 
     try {
-      // Chuyển dữ liệu chi tiết cũ thành định dạng API mới.
       final answers = questionDetails.map((detail) {
         final questionId = detail['cau_hoi_id'];
 
-        if (questionId == null ||
-            questionId.toString().isEmpty) {
+        if (questionId == null || questionId.toString().isEmpty) {
           throw Exception('Thiếu mã câu hỏi khi nộp bài.');
         }
 
         final selectedAnswers =
-            detail['dap_an_da_chon'] as List? ?? [];
+            detail['dap_an_da_chon'] as core.List? ?? [];
 
         final selectedAnswerIds = <String>[];
 
         for (final answer in selectedAnswers) {
-          if (answer is! Map) {
+          if (answer is! core.Map) {
             throw Exception('Dữ liệu đáp án không hợp lệ.');
           }
 
           final answerId = answer['dap_an_id'];
 
-          if (answerId != null &&
-              answerId.toString().isNotEmpty) {
+          if (answerId != null && answerId.toString().isNotEmpty) {
             selectedAnswerIds.add(answerId.toString());
           }
         }
@@ -189,14 +180,14 @@ class QuizService {
 
       final data = result['data'];
 
-      if (data is! Map) {
+      if (data is! core.Map) {
         throw Exception(
           'Backend không trả về kết quả bài thi hợp lệ.',
         );
       }
 
       return QuizSubmissionResultModel.fromJson(
-        Map<String, dynamic>.from(data),
+        core.Map<String, dynamic>.from(data),
       );
     } catch (e) {
       throw Exception('Không thể nộp bài thi: $e');
@@ -204,7 +195,7 @@ class QuizService {
   }
 
   /// Lấy lịch sử làm bài của thí sinh.
-  static Future<List<QuizAttemptModel>> getUserAttempts({
+  static core.Future<core.List<QuizAttemptModel>> getUserAttempts({
     int limit = 20,
     int offset = 0,
     String? subjectId,
@@ -225,7 +216,6 @@ class QuizService {
           .eq('nguoi_dung_id', uid)
           .eq('trang_thai', 'hoan_thanh');
 
-      // Lọc theo môn học nếu được yêu cầu.
       if (subjectId != null && subjectId.isNotEmpty) {
         query = query.eq('de_thi.mon_hoc_id', subjectId);
       }
@@ -234,10 +224,10 @@ class QuizService {
           .order('bat_dau_luc', ascending: false)
           .range(offset, offset + limit - 1);
 
-      return (response as List)
+      return (response as core.List)
           .map(
             (item) => QuizAttemptModel.fromJson(
-              Map<String, dynamic>.from(item as Map),
+              core.Map<String, dynamic>.from(item as core.Map),
             ),
           )
           .toList();
@@ -249,7 +239,7 @@ class QuizService {
   }
 
   /// Lấy chi tiết bài thi để xem lại.
-  static Future<List<AttemptDetailModel>> getAttemptReview(
+  static core.Future<core.List<AttemptDetailModel>> getAttemptReview(
     String attemptId,
   ) async {
     try {
@@ -264,10 +254,10 @@ class QuizService {
           .eq('lan_lam_bai_id', attemptId)
           .order('thu_tu', ascending: true);
 
-      return (response as List)
+      return (response as core.List)
           .map(
             (item) => AttemptDetailModel.fromJson(
-              Map<String, dynamic>.from(item as Map),
+              core.Map<String, dynamic>.from(item as core.Map),
             ),
           )
           .toList();
@@ -275,6 +265,152 @@ class QuizService {
       throw Exception('Lỗi tải chi tiết bài làm: ${e.message}');
     } catch (e) {
       throw Exception('Không thể xem lại bài thi: $e');
+    }
+  }
+
+  /// Lấy danh sách môn học từ bảng mon_hoc (luôn có "Khác" ở cuối danh sách).
+  static core.Future<core.List<core.Map<String, dynamic>>> getSubjects() async {
+    try {
+      final response = await _supabase
+          .from('mon_hoc')
+          .select('id, ten_mon')
+          .order('ten_mon', ascending: true);
+
+      final list =
+          core.List<core.Map<String, dynamic>>.from(response as core.List);
+
+      // Tách mục "Khác" (nếu đã có trong DB) để đưa xuống cuối cùng
+      final otherItems = list
+          .where((e) =>
+              (e['ten_mon']?.toString().trim().toLowerCase() ?? '') == 'khác')
+          .toList();
+      list.removeWhere((e) =>
+          (e['ten_mon']?.toString().trim().toLowerCase() ?? '') == 'khác');
+
+      if (otherItems.isNotEmpty) {
+        list.addAll(otherItems);
+      } else {
+        // Nếu DB chưa có hàng "Khác", tự bổ sung lựa chọn tạm thời ở cuối
+        list.add({'id': 'khac', 'ten_mon': 'Khác'});
+      }
+
+      return list;
+    } catch (e) {
+      throw Exception('Không thể tải danh sách môn học: $e');
+    }
+  }
+
+  /// Lấy danh sách câu hỏi có sẵn trong kho theo môn học.
+  static core.Future<core.List<core.Map<String, dynamic>>>
+      getQuestionsBySubject(String monHocId) async {
+    try {
+      final response = await _supabase
+          .from('cau_hoi')
+          .select('*, dap_an(*)')
+          .eq('mon_hoc_id', monHocId)
+          .order('id', ascending: true);
+
+      return core.List<core.Map<String, dynamic>>.from(response as core.List);
+    } on PostgrestException catch (e) {
+      throw Exception('Lỗi tải kho câu hỏi: ${e.message}');
+    } catch (e) {
+      throw Exception('Không thể tải kho câu hỏi: $e');
+    }
+  }
+
+  /// Tạo bộ đề mới vào các bảng de_thi -> cau_hoi -> dap_an.
+  static core.Future<String> createExam({
+    required String tieuDe,
+    required String moTa,
+    required String monHocId,
+    required core.List<core.Map<String, dynamic>> questions,
+  }) async {
+    final uid = _currentUserId;
+    if (uid == null) {
+      throw Exception('Bạn chưa đăng nhập.');
+    }
+
+    try {
+      String resolvedMonHocId = monHocId;
+
+      // Nếu người dùng chọn "Khác" khi DB chưa có dòng này, tự động tìm hoặc tạo mới trong mon_hoc
+      if (resolvedMonHocId == 'khac') {
+        final existingOther = await _supabase
+            .from('mon_hoc')
+            .select('id')
+            .ilike('ten_mon', 'Khác')
+            .limit(1)
+            .maybeSingle();
+
+        if (existingOther != null && existingOther['id'] != null) {
+          resolvedMonHocId = existingOther['id'].toString();
+        } else {
+          final insertedOther = await _supabase
+              .from('mon_hoc')
+              .insert({'ten_mon': 'Khác'})
+              .select('id')
+              .single();
+          resolvedMonHocId = insertedOther['id'].toString();
+        }
+      }
+
+      // 1. Lấy mã loại câu hỏi mặc định từ bảng loai_cau_hoi
+      final questionType = await _supabase
+          .from('loai_cau_hoi')
+          .select('id')
+          .limit(1)
+          .single();
+      final String loaiCauHoiId = questionType['id'].toString();
+
+      // 2. Tạo bản ghi trong bảng de_thi
+      final examRes = await _supabase
+          .from('de_thi')
+          .insert({
+            'tieu_de': tieuDe,
+            'mo_ta': moTa,
+            'mon_hoc_id': resolvedMonHocId,
+            'nguoi_tao_id': uid,
+          })
+          .select('id')
+          .single();
+
+      final String deThiId = examRes['id'].toString();
+
+      // 3. Tạo từng câu hỏi và 4 đáp án tương ứng
+      for (int i = 0; i < questions.length; i++) {
+        final q = questions[i];
+
+        final questionRes = await _supabase
+            .from('cau_hoi')
+            .insert({
+              'de_thi_id': deThiId,
+              'loai_cau_hoi_id': loaiCauHoiId,
+              'noi_dung': q['noi_dung'],
+              'thu_tu': i + 1,
+            })
+            .select('id')
+            .single();
+
+        final String cauHoiId = questionRes['id'].toString();
+        final core.List<core.Map<String, dynamic>> options =
+            core.List<core.Map<String, dynamic>>.from(q['options'] as core.List);
+
+        final answersPayload = options.map((opt) {
+          return {
+            'cau_hoi_id': cauHoiId,
+            'noi_dung': opt['noi_dung'],
+            'la_dap_an_dung': opt['is_correct'] == true,
+          };
+        }).toList();
+
+        await _supabase.from('dap_an').insert(answersPayload);
+      }
+
+      return deThiId;
+    } on PostgrestException catch (e) {
+      throw Exception('Lỗi cơ sở dữ liệu (${e.code}): ${e.message}');
+    } catch (e) {
+      throw Exception('Không thể tạo bộ đề: $e');
     }
   }
 }

@@ -1,17 +1,37 @@
-﻿import 'dart:core';
+﻿import 'dart:convert';
+import 'dart:core';
 import 'dart:core' as core;
 import 'dart:io';
-import 'dart:convert';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class BackendService {
   static final core.String baseUrl = kIsWeb
       ? 'http://localhost:3000'
       : (Platform.isAndroid ? 'http://10.0.2.2:3000' : 'http://localhost:3000');
+
+  // Đợi Firebase Auth khôi phục phiên đăng nhập (tránh lỗi User not signed in khi F5 trên Web)
+  static core.Future<User> _getAuthenticatedUser() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      try {
+        user = await FirebaseAuth.instance
+            .authStateChanges()
+            .firstWhere((u) => u != null)
+            .timeout(const core.Duration(seconds: 3));
+      } catch (_) {
+        user = FirebaseAuth.instance.currentUser;
+      }
+    }
+
+    if (user == null) {
+      throw core.Exception('User not signed in');
+    }
+    return user;
+  }
 
   // Private helper to send request with Firebase ID Token
   static core.Future<http.Response> _authorizedRequest(
@@ -20,10 +40,7 @@ class BackendService {
     core.Object? body,
     core.Map<core.String, core.String>? extraHeaders,
   }) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      throw core.Exception('User not signed in');
-    }
+    final user = await _getAuthenticatedUser();
 
     final idToken = await user.getIdToken();
     if (idToken == null || idToken.isEmpty) {
@@ -90,14 +107,9 @@ class BackendService {
     required core.String filename,
     required core.String mimeType,
   }) async {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      throw core.Exception('User not signed in');
-    }
+    final user = await _getAuthenticatedUser();
 
     final idToken = await user.getIdToken();
-
     if (idToken == null || idToken.isEmpty) {
       throw core.Exception('Unable to obtain Firebase ID Token');
     }
@@ -107,11 +119,9 @@ class BackendService {
     }
 
     final uri = core.Uri.parse('$baseUrl/api/questions/upload');
-
     final request = http.MultipartRequest('POST', uri);
 
     request.headers['Authorization'] = 'Bearer $idToken';
-
     request.files.add(
       http.MultipartFile.fromBytes(
         'file',

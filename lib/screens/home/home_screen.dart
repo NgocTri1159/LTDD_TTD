@@ -1,15 +1,25 @@
 import 'dart:core';
 import 'dart:core' as core;
+import 'dart:math';
 import 'package:material_ui/material_ui.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../services/auth_service.dart';
 import '../../services/backend_service.dart';
+import '../../services/exam_service.dart';
 import '../../services/role_service.dart';
+import '../../services/session_guard_service.dart';
 import '../../screens/subject/subject_detail_screen.dart';
 import '../../screens/subject/subject_list_screen.dart';
 import '../../screens/setting/change_password_screen.dart';
 import '../../screens/profile/profile_screen.dart';
+import '../../screens/quiz/create_quiz_screen.dart';
+import '../../screens/quiz/quiz_taking_screen.dart';
+import '../../screens/room/create_room_screen.dart';
+import '../../screens/room/room_list_screen.dart';
+import '../../screens/room/room_lobby_screen.dart';
+import '../../screens/ranking/leaderboard_screen.dart';
+import '../../screens/statistics/statistics_screen.dart';
 import '../../models/subject_model.dart';
 import '../../services/subject_service.dart';
 import '../../screens/friends/friends_tab.dart';
@@ -32,10 +42,12 @@ class _HomeScreenState extends State<HomeScreen> {
   static const Color backgroundColor = Color(0xFFF9FAFF);
 
   final SupabaseClient _supabase = Supabase.instance.client;
+  final Random _random = Random();
   RealtimeChannel? _notificationChannel;
 
   int _selectedIndex = 0;
   bool _isAdminUser = false;
+  bool _isQuickMatching = false;
 
   core.List<core.Map<String, dynamic>> _notifications = [];
   int get _unreadCount =>
@@ -47,51 +59,53 @@ class _HomeScreenState extends State<HomeScreen> {
     {
       'label': 'Chơi ngay',
       'icon': Icons.play_arrow_rounded,
+      'action': 'play_now',
     },
     {
       'label': 'Thách đấu',
       'icon': Icons.emoji_events_rounded,
+      'action': 'challenge',
     },
     {
       'label': 'Xếp hạng',
       'icon': Icons.military_tech_rounded,
+      'action': 'ranking',
     },
     {
       'label': 'Thống kê',
       'icon': Icons.bar_chart_rounded,
+      'action': 'statistics',
     },
   ];
 
-  final _mainFeatures = [
+  final core.List<core.Map<String, dynamic>> _mainFeatures = [
     {
-      'label': 'DS bộ đề',
-      'icon': Icons.description_outlined,
-      'action': 'subjects',
+      'label': 'Tạo bộ đề',
+      'icon': Icons.post_add_rounded,
+      'action': 'create_quiz',
+      'bgColor': const Color(0xFFFFF3E0),
+      'iconColor': const Color(0xFFF79E1B), // Cam nổi bật
     },
     {
       'label': 'Tạo phòng',
       'icon': Icons.add_circle_outline_rounded,
       'action': 'create_room',
-    },
-    {
-      'label': 'Vào phòng',
-      'icon': Icons.group_add_outlined,
-      'action': 'join_room',
+      'bgColor': const Color(0xFFE8F5E9),
+      'iconColor': const Color(0xFF2E7D32), // Xanh lá
     },
     {
       'label': 'DS phòng',
-      'icon': Icons.groups_outlined,
+      'icon': Icons.meeting_room_outlined,
       'action': 'room_list',
-    },
-    {
-      'label': 'Chế độ',
-      'icon': Icons.grid_view_rounded,
-      'action': 'game_modes',
+      'bgColor': const Color(0xFFE1F5FE),
+      'iconColor': const Color(0xFF0288D1), // Xanh dương
     },
     {
       'label': 'Khác',
       'icon': Icons.apps_rounded,
       'action': 'more',
+      'bgColor': const Color(0xFFF3E5F5),
+      'iconColor': const Color(0xFF7B1FA2), // Tím violet
     },
   ];
 
@@ -112,6 +126,9 @@ class _HomeScreenState extends State<HomeScreen> {
         } catch (e) {
           debugPrint('CHECK CURRENT USER ERROR: $e');
         }
+        if (mounted) {
+          await SessionGuardService.instance.startSession(context);
+        }
       }
     });
   }
@@ -122,6 +139,171 @@ class _HomeScreenState extends State<HomeScreen> {
       _supabase.removeChannel(_notificationChannel!);
     }
     super.dispose();
+  }
+
+  // =========================
+  // 4 CHỨC NĂNG NHANH TRÊN HEADER
+  // =========================
+
+  /// 1. Chơi ngay: Vào ngẫu nhiên 1 phòng công khai đang chờ
+  Future<void> _handlePlayNowRandomRoom() async {
+    if (_isQuickMatching) return;
+    setState(() => _isQuickMatching = true);
+
+    try {
+      final res = await _supabase
+          .from('phong_thi')
+          .select('*, thanh_vien_phong(id, nguoi_dung_id)')
+          .eq('trang_thai', 'dang_cho')
+          .eq('rieng_tu', false);
+
+      final allWaiting =
+          core.List<core.Map<String, dynamic>>.from(res as core.List);
+
+      // Lọc các phòng công khai (không mật khẩu), có ít nhất 1 người và chưa đầy
+      final availableRooms = allWaiting.where((room) {
+        final pwd = (room['mat_khau'] ?? '').toString().trim();
+        if (pwd.isNotEmpty) return false;
+
+        final members = room['thanh_vien_phong'];
+        final currentCount = members is core.List ? members.length : 0;
+        final maxPlayers = (room['so_nguoi_toi_da'] as num?)?.toInt() ?? 2;
+
+        return currentCount > 0 && currentCount < maxPlayers;
+      }).toList();
+
+      if (!mounted) return;
+
+      if (availableRooms.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Hiện chưa có phòng công khai nào đang chờ. Bạn có thể tạo phòng mới!',
+            ),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            action: SnackBarAction(
+              label: 'Tạo phòng',
+              textColor: const Color(0xFFFFD54F),
+              onPressed: _openCreateRoomScreen,
+            ),
+          ),
+        );
+        return;
+      }
+
+      final chosenRoom = availableRooms[_random.nextInt(availableRooms.length)];
+
+      // Lấy dữ liệu mới nhất của phòng trước khi vào sảnh
+      final freshRoom = await _supabase
+          .from('phong_thi')
+          .select('*')
+          .eq('id', chosenRoom['id'])
+          .maybeSingle();
+
+      if (!mounted) return;
+
+      if (freshRoom == null || freshRoom['trang_thai'] != 'dang_cho') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Phòng vừa bắt đầu, vui lòng bấm Chơi ngay lại.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RoomLobbyScreen(
+            roomData: core.Map<String, dynamic>.from(freshRoom),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Không thể tìm phòng ngẫu nhiên: $e'),
+          backgroundColor: const Color(0xFFD32F2F),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isQuickMatching = false);
+    }
+  }
+
+  /// 2. Thách đấu: Làm ngẫu nhiên 1 đề kiểm tra công khai đã xuất bản
+  Future<void> _handleRandomChallengeExam() async {
+    if (_isQuickMatching) return;
+    setState(() => _isQuickMatching = true);
+
+    try {
+      final exams = await ExamService.getPublishedExams(limit: 50);
+
+      // Ưu tiên chọn trong các đề có ít nhất 1 câu hỏi
+      final validExams =
+          exams.where((e) => (e.soLuongCauHoi ?? 0) > 0).toList();
+      final pool = validExams.isNotEmpty ? validExams : exams;
+
+      if (!mounted) return;
+
+      if (pool.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Hiện chưa có đề kiểm tra công khai nào trên hệ thống.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      final randomExam = pool[_random.nextInt(pool.length)];
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => QuizTakingScreen(exam: randomExam),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().replaceFirst('Exception: ', ''),
+          ),
+          backgroundColor: const Color(0xFFD32F2F),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isQuickMatching = false);
+    }
+  }
+
+  /// 3. Xếp hạng: Top Rank & Top Cấp độ
+  void _openLeaderboardScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const LeaderboardScreen(),
+      ),
+    );
+  }
+
+  /// 4. Thống kê: Xếp hạng, số câu hỏi đã trả lời, tổng thời gian chơi, tỷ lệ đúng
+  void _openStatisticsScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const StatisticsScreen(),
+      ),
+    );
   }
 
   // =========================
@@ -601,6 +783,36 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _openCreateQuizScreen() async {
+    final created = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const CreateQuizScreen(),
+      ),
+    );
+    if (created == true && mounted) {
+      _loadSubjects();
+    }
+  }
+
+  Future<void> _openCreateRoomScreen() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const CreateRoomScreen(),
+      ),
+    );
+  }
+
+  Future<void> _openRoomListScreen() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const RoomListScreen(),
+      ),
+    );
+  }
+
   void _showComingSoon(String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -645,6 +857,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (confirm == true) {
+      await SessionGuardService.instance.stopSession();
       await AuthService().logout();
     }
   }
@@ -700,13 +913,54 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: IndexedStack(
-        index: _selectedIndex,
+      body: Stack(
         children: [
-          _buildHomePage(),
-          _buildHistoryPage(),
-          _buildFriendsPage(),
-          _buildSettingsPage(),
+          IndexedStack(
+            index: _selectedIndex,
+            children: [
+              _buildHomePage(),
+              _buildHistoryPage(),
+              _buildFriendsPage(),
+              _buildSettingsPage(),
+            ],
+          ),
+          if (_isQuickMatching)
+            Container(
+              color: Colors.black26,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 18,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: primaryPurple,
+                        ),
+                      ),
+                      SizedBox(width: 14),
+                      Text(
+                        'Đang ghép trận...',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: darkText,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
       bottomNavigationBar: _buildBottomNavigation(),
@@ -945,10 +1199,19 @@ class _HomeScreenState extends State<HomeScreen> {
             children: _quickActions.map((item) {
               return InkWell(
                 onTap: () {
-                  if (item['label'] == 'Chơi ngay') {
-                    _openAllSubjects();
-                  } else {
-                    _showComingSoon(item['label'] as String);
+                  switch (item['action']) {
+                    case 'play_now':
+                      _handlePlayNowRandomRoom();
+                      break;
+                    case 'challenge':
+                      _handleRandomChallengeExam();
+                      break;
+                    case 'ranking':
+                      _openLeaderboardScreen();
+                      break;
+                    case 'statistics':
+                      _openStatisticsScreen();
+                      break;
                   }
                 },
                 borderRadius: BorderRadius.circular(14),
@@ -1090,10 +1353,17 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       itemBuilder: (context, index) {
         final feature = _mainFeatures[index];
+        final bgColor = (feature['bgColor'] as Color?) ?? cardLavender;
+        final iconColor = (feature['iconColor'] as Color?) ?? darkText;
+
         return InkWell(
           onTap: () {
-            if (feature['action'] == 'subjects') {
-              _openAllSubjects();
+            if (feature['action'] == 'create_quiz') {
+              _openCreateQuizScreen();
+            } else if (feature['action'] == 'create_room') {
+              _openCreateRoomScreen();
+            } else if (feature['action'] == 'room_list') {
+              _openRoomListScreen();
             } else {
               _showComingSoon(feature['label'] as String);
             }
@@ -1106,12 +1376,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: 58,
                 height: 58,
                 decoration: BoxDecoration(
-                  color: cardLavender,
+                  color: bgColor,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
                   feature['icon'] as IconData,
-                  color: darkText,
+                  color: iconColor,
                   size: 26,
                 ),
               ),
@@ -1439,12 +1709,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     trailingText: 'Admin',
                     onTap: _backToAdminDashboard,
                   ),
-
-                _buildSettingTile(
-                  icon: Icons.person_outline_rounded,
-                  title: 'Tài khoản',
-                  onTap: _openProfileScreen,
-                ),
 
                 if (!_isAdminUser)
                   _buildSettingTile(
