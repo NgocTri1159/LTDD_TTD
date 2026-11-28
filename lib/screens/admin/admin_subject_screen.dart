@@ -23,6 +23,7 @@ class _AdminSubjectScreenState extends State<AdminSubjectScreen> {
 
   late Future<List<SubjectModel>> _subjectsFuture;
   String _searchQuery = '';
+  String _statusFilter = 'all'; // 'all', 'active', 'locked'
   bool _isProcessing = false;
 
   @override
@@ -68,7 +69,7 @@ class _AdminSubjectScreenState extends State<AdminSubjectScreen> {
       if (symbol.characters.length <= 2) {
         return Text(
           symbol,
-          style: const TextStyle(fontSize: 24),
+          style: const TextStyle(fontSize: 26),
           textAlign: TextAlign.center,
         );
       }
@@ -81,11 +82,12 @@ class _AdminSubjectScreenState extends State<AdminSubjectScreen> {
   }
 
   List<SubjectModel> _filterSubjects(List<SubjectModel> subjects) {
-    if (_searchQuery.trim().isEmpty) {
-      return subjects;
-    }
-    final query = _searchQuery.trim().toLowerCase();
     return subjects.where((s) {
+      if (_statusFilter == 'active' && !s.trangThai) return false;
+      if (_statusFilter == 'locked' && s.trangThai) return false;
+
+      if (_searchQuery.trim().isEmpty) return true;
+      final query = _searchQuery.trim().toLowerCase();
       final name = s.tenMon.toLowerCase();
       final desc = (s.moTa ?? '').toLowerCase();
       return name.contains(query) || desc.contains(query);
@@ -188,131 +190,230 @@ class _AdminSubjectScreenState extends State<AdminSubjectScreen> {
     }
   }
 
+  Widget _buildSummaryBar(List<SubjectModel> subjects) {
+    final total = subjects.length;
+    final activeCount = subjects.where((s) => s.trangThai).length;
+    final lockedCount = total - activeCount;
+
+    Widget statPill({
+      required String label,
+      required int count,
+      required String filterKey,
+      required Color color,
+    }) {
+      final isSelected = _statusFilter == filterKey;
+      return Expanded(
+        child: InkWell(
+          onTap: () => setState(() => _statusFilter = filterKey),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+            decoration: BoxDecoration(
+              color: isSelected ? color : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isSelected ? color : AppTheme.cardBorder,
+              ),
+              boxShadow: [
+                if (isSelected)
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    color: isSelected ? Colors.white : color,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected
+                        ? Colors.white.withValues(alpha: 0.92)
+                        : AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+      child: Row(
+        children: [
+          statPill(
+            label: 'Tất cả môn',
+            count: total,
+            filterKey: 'all',
+            color: AppTheme.primary,
+          ),
+          const SizedBox(width: 10),
+          statPill(
+            label: 'Đang hoạt động',
+            count: activeCount,
+            filterKey: 'active',
+            color: AppTheme.success,
+          ),
+          const SizedBox(width: 10),
+          statPill(
+            label: 'Đã khóa',
+            count: lockedCount,
+            filterKey: 'locked',
+            color: AppTheme.error,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSubjectCard(SubjectModel subject) {
     final color = _getSubjectColor(subject.mauSac);
 
     return AppCard(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(color: color, width: 5),
+            ),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Icon môn học
-              Container(
-                width: 48,
-                height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: color.withAlpha(28),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: color.withAlpha(50)),
-                ),
-                child: _buildSubjectIcon(subject, color),
-              ),
-              const SizedBox(width: 14),
-
-              // Thông tin môn học
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      subject.tenMon,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
-                      ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Icon môn học
+                  Container(
+                    width: 52,
+                    height: 52,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: color.withAlpha(28),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: color.withAlpha(60)),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subject.moTa?.trim().isNotEmpty == true
-                          ? subject.moTa!
-                          : 'Chưa có mô tả cho môn học này.',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
+                    child: _buildSubjectIcon(subject, color),
+                  ),
+                  const SizedBox(width: 14),
 
-                    // Badges: Thứ tự và Trạng thái
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
+                  // Thông tin môn học
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Badge Thứ tự
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                subject.tenMon,
+                                style: const TextStyle(
+                                  fontSize: 16.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 9,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: subject.trangThai
+                                    ? AppTheme.successContainer
+                                    : AppTheme.errorContainer,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    subject.trangThai
+                                        ? Icons.check_circle_rounded
+                                        : Icons.lock_rounded,
+                                    size: 13,
+                                    color: subject.trangThai
+                                        ? AppTheme.success
+                                        : AppTheme.error,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    subject.trangThai
+                                        ? 'Hoạt động'
+                                        : 'Đã khóa',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: subject.trangThai
+                                          ? AppTheme.success
+                                          : AppTheme.error,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          subject.moTa?.trim().isNotEmpty == true
+                              ? subject.moTa!
+                              : 'Chưa có mô tả cho môn học này.',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
+                            horizontal: 9,
+                            vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(6),
+                            color: AppTheme.background,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppTheme.cardBorder),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(
                                 Icons.sort_rounded,
-                                size: 12,
+                                size: 13,
                                 color: AppTheme.primary,
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                'Thứ tự: ${subject.thuTuHienThi}',
+                                'Thứ tự hiển thị: ${subject.thuTuHienThi}',
                                 style: const TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 11.5,
                                   fontWeight: FontWeight.w600,
-                                  color: AppTheme.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Badge Trạng thái
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: subject.trangThai
-                                ? AppTheme.successContainer
-                                : AppTheme.errorContainer,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                subject.trangThai
-                                    ? Icons.check_circle_rounded
-                                    : Icons.lock_rounded,
-                                size: 12,
-                                color: subject.trangThai
-                                    ? AppTheme.success
-                                    : AppTheme.error,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                subject.trangThai
-                                    ? 'Đang hoạt động'
-                                    : 'Đã khóa',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: subject.trangThai
-                                      ? AppTheme.success
-                                      : AppTheme.error,
+                                  color: AppTheme.textSecondary,
                                 ),
                               ),
                             ],
@@ -320,61 +421,79 @@ class _AdminSubjectScreenState extends State<AdminSubjectScreen> {
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 14),
+              const Divider(height: 1, color: AppTheme.cardBorder),
+              const SizedBox(height: 10),
+
+              // Nút hành động
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _isProcessing
+                        ? null
+                        : () => _openEditSubject(subject),
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('Chỉnh sửa'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primary,
+                      side: BorderSide(
+                        color: AppTheme.primary.withValues(alpha: 0.4),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  TextButton.icon(
+                    onPressed: _isProcessing
+                        ? null
+                        : () => _toggleSubjectStatus(subject),
+                    icon: Icon(
+                      subject.trangThai
+                          ? Icons.lock_outline_rounded
+                          : Icons.lock_open_rounded,
+                      size: 16,
+                    ),
+                    label: Text(subject.trangThai ? 'Khóa môn' : 'Mở khóa'),
+                    style: TextButton.styleFrom(
+                      foregroundColor:
+                          subject.trangThai ? AppTheme.error : AppTheme.success,
+                      backgroundColor: (subject.trangThai
+                              ? AppTheme.error
+                              : AppTheme.success)
+                          .withValues(alpha: 0.08),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: AppTheme.cardBorder),
-          const SizedBox(height: 8),
-
-          // Nút hành động
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              // Nút chỉnh sửa
-              TextButton.icon(
-                onPressed: _isProcessing
-                    ? null
-                    : () => _openEditSubject(subject),
-                icon: const Icon(Icons.edit_outlined, size: 16),
-                label: const Text('Chỉnh sửa'),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.primary,
-                  textStyle: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-
-              // Nút khóa / mở khóa
-              TextButton.icon(
-                onPressed: _isProcessing
-                    ? null
-                    : () => _toggleSubjectStatus(subject),
-                icon: Icon(
-                  subject.trangThai
-                      ? Icons.lock_outline_rounded
-                      : Icons.lock_open_rounded,
-                  size: 16,
-                ),
-                label: Text(subject.trangThai ? 'Khóa môn' : 'Mở khóa'),
-                style: TextButton.styleFrom(
-                  foregroundColor:
-                      subject.trangThai ? AppTheme.error : AppTheme.success,
-                  textStyle: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -390,6 +509,7 @@ class _AdminSubjectScreenState extends State<AdminSubjectScreen> {
         ),
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
             tooltip: 'Tải lại',
@@ -420,7 +540,7 @@ class _AdminSubjectScreenState extends State<AdminSubjectScreen> {
             children: [
               // Thanh tìm kiếm
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                 child: TextField(
                   controller: _searchController,
                   onChanged: (val) {
@@ -449,7 +569,11 @@ class _AdminSubjectScreenState extends State<AdminSubjectScreen> {
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
+                      borderSide: const BorderSide(color: AppTheme.cardBorder),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: AppTheme.cardBorder),
                     ),
                   ),
                 ),
@@ -492,54 +616,73 @@ class _AdminSubjectScreenState extends State<AdminSubjectScreen> {
                     final subjects = snapshot.data ?? [];
                     final filtered = _filterSubjects(subjects);
 
-                    if (filtered.isEmpty) {
-                      return RefreshIndicator(
-                        onRefresh: () async => _loadSubjects(),
-                        color: AppTheme.primary,
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            return SingleChildScrollView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  minHeight: constraints.maxHeight,
+                    return Column(
+                      children: [
+                        if (subjects.isNotEmpty) _buildSummaryBar(subjects),
+                        Expanded(
+                          child: filtered.isEmpty
+                              ? RefreshIndicator(
+                                  onRefresh: () async => _loadSubjects(),
+                                  color: AppTheme.primary,
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      return SingleChildScrollView(
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(),
+                                        child: ConstrainedBox(
+                                          constraints: BoxConstraints(
+                                            minHeight: constraints.maxHeight,
+                                          ),
+                                          child: EmptyStateWidget(
+                                            icon: Icons.menu_book_rounded,
+                                            title: _searchQuery.isEmpty &&
+                                                    _statusFilter == 'all'
+                                                ? 'Chưa có môn học nào'
+                                                : 'Không tìm thấy môn học',
+                                            message: _searchQuery.isEmpty &&
+                                                    _statusFilter == 'all'
+                                                ? 'Hãy nhấn "Thêm môn học" để tạo môn học đầu tiên cho hệ thống.'
+                                                : 'Không có môn học nào khớp với điều kiện lọc hiện tại.',
+                                            actionText: _searchQuery.isNotEmpty ||
+                                                    _statusFilter != 'all'
+                                                ? 'Xóa bộ lọc'
+                                                : 'Thêm môn học ngay',
+                                            onAction: _searchQuery.isNotEmpty ||
+                                                    _statusFilter != 'all'
+                                                ? () {
+                                                    _searchController.clear();
+                                                    setState(() {
+                                                      _searchQuery = '';
+                                                      _statusFilter = 'all';
+                                                    });
+                                                  }
+                                                : _openAddSubject,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                )
+                              : RefreshIndicator(
+                                  onRefresh: () async => _loadSubjects(),
+                                  color: AppTheme.primary,
+                                  child: ListView.builder(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      16,
+                                      8,
+                                      16,
+                                      84,
+                                    ),
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    itemCount: filtered.length,
+                                    itemBuilder: (context, index) {
+                                      return _buildSubjectCard(filtered[index]);
+                                    },
+                                  ),
                                 ),
-                                child: EmptyStateWidget(
-                                  icon: Icons.menu_book_rounded,
-                                  title: _searchQuery.isEmpty
-                                      ? 'Chưa có môn học nào'
-                                      : 'Không tìm thấy môn học',
-                                  message: _searchQuery.isEmpty
-                                      ? 'Hãy nhấn "Thêm môn học" để tạo môn học đầu tiên cho hệ thống.'
-                                      : 'Không tìm thấy môn học khớp với từ khóa "$_searchQuery".',
-                                  actionText: _searchQuery.isNotEmpty
-                                      ? 'Xóa tìm kiếm'
-                                      : 'Thêm môn học ngay',
-                                  onAction: _searchQuery.isNotEmpty
-                                      ? () {
-                                          _searchController.clear();
-                                          setState(() => _searchQuery = '');
-                                        }
-                                      : _openAddSubject,
-                                ),
-                              ),
-                            );
-                          },
                         ),
-                      );
-                    }
-
-                    return RefreshIndicator(
-                      onRefresh: () async => _loadSubjects(),
-                      color: AppTheme.primary,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, index) {
-                          return _buildSubjectCard(filtered[index]);
-                        },
-                      ),
+                      ],
                     );
                   },
                 ),

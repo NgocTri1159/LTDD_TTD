@@ -99,6 +99,169 @@ class _SubjectFormScreenState extends State<SubjectFormScreen> {
     return AppTheme.primary;
   }
 
+  Widget _buildSectionHeader(IconData icon, String title) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: AppTheme.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 18, color: AppTheme.primary),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLivePreviewCard() {
+    final previewColor = _previewColor();
+    final name = _nameController.text.trim().isEmpty
+        ? 'Tên môn học'
+        : _nameController.text.trim();
+    final desc = _descController.text.trim().isEmpty
+        ? 'Mô tả ngắn gọn về nội dung môn học sẽ hiển thị tại đây.'
+        : _descController.text.trim();
+    final symbol = _iconController.text.trim();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            previewColor.withValues(alpha: 0.14),
+            Colors.white,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: previewColor.withValues(alpha: 0.35),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.visibility_outlined,
+                size: 15,
+                color: previewColor,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Xem trước hiển thị',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: previewColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: previewColor.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: previewColor.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: symbol.isNotEmpty && symbol.characters.length <= 2
+                    ? Text(
+                        symbol,
+                        style: const TextStyle(fontSize: 27),
+                      )
+                    : Icon(
+                        Icons.menu_book_rounded,
+                        color: previewColor,
+                        size: 28,
+                      ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 16.5,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _status
+                                ? AppTheme.successContainer
+                                : AppTheme.errorContainer,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            _status ? 'Hoạt động' : 'Đã khóa',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: _status
+                                  ? AppTheme.success
+                                  : AppTheme.error,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      desc,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppTheme.textSecondary,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _submit() async {
     if (_isLoading || !_formKey.currentState!.validate()) return;
 
@@ -199,6 +362,7 @@ class _SubjectFormScreenState extends State<SubjectFormScreen> {
         ),
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: Center(
         child: ConstrainedBox(
@@ -210,21 +374,21 @@ class _SubjectFormScreenState extends State<SubjectFormScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Khung xem trước trực tiếp
+                  _buildLivePreviewCard(),
+                  const SizedBox(height: 18),
+
                   // Thông tin cơ bản.
                   AppCard(
                     padding: const EdgeInsets.all(20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        _buildSectionHeader(
+                          Icons.info_outline_rounded,
                           'Thông tin cơ bản',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
-                          ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 18),
 
                         AppTextField(
                           controller: _nameController,
@@ -233,6 +397,7 @@ class _SubjectFormScreenState extends State<SubjectFormScreen> {
                               'Nhập tên môn học (ví dụ: Toán học, Lịch sử...)',
                           prefixIcon: Icons.menu_book_rounded,
                           enabled: !_isLoading,
+                          onChanged: (_) => setState(() {}),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
                               return 'Tên môn học không được để trống';
@@ -249,6 +414,7 @@ class _SubjectFormScreenState extends State<SubjectFormScreen> {
                           prefixIcon: Icons.description_outlined,
                           maxLines: 3,
                           enabled: !_isLoading,
+                          onChanged: (_) => setState(() {}),
                         ),
                         const SizedBox(height: 16),
 
@@ -276,7 +442,7 @@ class _SubjectFormScreenState extends State<SubjectFormScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 18),
 
                   // Giao diện và biểu tượng.
                   AppCard(
@@ -284,15 +450,11 @@ class _SubjectFormScreenState extends State<SubjectFormScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        _buildSectionHeader(
+                          Icons.palette_outlined,
                           'Giao diện & Biểu tượng',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
-                          ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 18),
 
                         AppTextField(
                           controller: _iconController,
@@ -302,12 +464,13 @@ class _SubjectFormScreenState extends State<SubjectFormScreen> {
                           enabled: !_isLoading,
                           onChanged: (_) => setState(() {}),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
 
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
                           children: _emojiSuggestions.map((emoji) {
+                            final isSelected = _iconController.text == emoji;
                             return InkWell(
                               onTap: _isLoading
                                   ? null
@@ -316,27 +479,26 @@ class _SubjectFormScreenState extends State<SubjectFormScreen> {
                                         _iconController.text = emoji;
                                       });
                                     },
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(10),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
+                                width: 42,
+                                height: 40,
+                                alignment: Alignment.center,
                                 decoration: BoxDecoration(
-                                  color: AppTheme.background,
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: isSelected
+                                      ? AppTheme.primary.withValues(alpha: 0.12)
+                                      : AppTheme.background,
+                                  borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
-                                    color: _iconController.text == emoji
+                                    color: isSelected
                                         ? AppTheme.primary
                                         : AppTheme.cardBorder,
-                                    width: _iconController.text == emoji
-                                        ? 2
-                                        : 1,
+                                    width: isSelected ? 2 : 1,
                                   ),
                                 ),
                                 child: Text(
                                   emoji,
-                                  style: const TextStyle(fontSize: 18),
+                                  style: const TextStyle(fontSize: 19),
                                 ),
                               ),
                             );
@@ -348,7 +510,7 @@ class _SubjectFormScreenState extends State<SubjectFormScreen> {
                           controller: _colorController,
                           label: 'Màu sắc môn học (Mã HEX)',
                           hint: 'Ví dụ: #6257E8',
-                          prefixIcon: Icons.palette_outlined,
+                          prefixIcon: Icons.color_lens_outlined,
                           enabled: !_isLoading,
                           onChanged: (_) => setState(() {}),
                           suffixIcon: Padding(
@@ -379,11 +541,11 @@ class _SubjectFormScreenState extends State<SubjectFormScreen> {
                             return null;
                           },
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
 
                         Wrap(
-                          spacing: 10,
-                          runSpacing: 8,
+                          spacing: 12,
+                          runSpacing: 10,
                           children: _colorPresets.map((colorValue) {
                             final hexStr =
                                 '#${colorValue.toARGB32().toRadixString(16).substring(2).toUpperCase()}';
@@ -399,10 +561,10 @@ class _SubjectFormScreenState extends State<SubjectFormScreen> {
                                         _colorController.text = hexStr;
                                       });
                                     },
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(18),
                               child: Container(
-                                width: 32,
-                                height: 32,
+                                width: 36,
+                                height: 36,
                                 decoration: BoxDecoration(
                                   color: colorValue,
                                   shape: BoxShape.circle,
@@ -415,7 +577,7 @@ class _SubjectFormScreenState extends State<SubjectFormScreen> {
                                   boxShadow: [
                                     if (isSelected)
                                       BoxShadow(
-                                        color: colorValue.withAlpha(120),
+                                        color: colorValue.withAlpha(130),
                                         blurRadius: 8,
                                         spreadRadius: 2,
                                       ),
@@ -435,7 +597,7 @@ class _SubjectFormScreenState extends State<SubjectFormScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 18),
 
                   // Cài đặt trạng thái.
                   AppCard(
@@ -476,7 +638,7 @@ class _SubjectFormScreenState extends State<SubjectFormScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 28),
 
                   // Nút hành động.
                   Row(
