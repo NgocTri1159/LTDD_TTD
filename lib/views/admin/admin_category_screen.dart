@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/category_model.dart';
-import '../controllers/category_controller.dart';
+import '../../core/theme.dart'; // Import bộ màu & font chuẩn của nhóm
+import '../../models/category_model.dart';
+import '../../controllers/category_controller.dart';
 
 class AdminCategoryScreen extends StatelessWidget {
   AdminCategoryScreen({super.key});
@@ -17,7 +18,7 @@ class AdminCategoryScreen extends StatelessWidget {
     'default_icon': Icons.book,       // Mặc định
   };
 
-  // Hàm chuyển đổi chuỗi lưu trên Firebase thành IconData hiển thị
+  // Chuyển đổi chuỗi lưu trên Firebase thành IconData
   IconData _getIconData(String iconName) {
     return _availableIcons[iconName] ?? Icons.book;
   }
@@ -25,42 +26,87 @@ class AdminCategoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Quản lý Môn học')),
+      // Tự động nhận nền #F5F7FF từ AppTheme.lightTheme
+      appBar: AppBar(
+        title: const Text('Quản lý Môn học'),
+        centerTitle: true,
+      ),
       body: StreamBuilder<List<CategoryModel>>(
         stream: _controller.getCategories(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.base),
+            );
           }
           if (snapshot.hasError) {
-            return Center(child: Text('Lỗi tải dữ liệu: ${snapshot.error}'));
+            return Center(
+              child: Text(
+                'Lỗi tải dữ liệu: ${snapshot.error}',
+                style: AppTextStyles.text.copyWith(color: Colors.redAccent),
+              ),
+            );
           }
 
           final categories = snapshot.data ?? [];
           if (categories.isEmpty) {
-            return const Center(child: Text('Chưa có môn học nào.'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.folder_open_rounded, size: 64, color: AppColors.base.withOpacity(0.4)),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Chưa có môn học nào.\nBấm dấu + để thêm mới.',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.text.copyWith(color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            );
           }
 
           return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 88), // Chừa khoảng trống dưới cho nút +
             itemCount: categories.length,
             itemBuilder: (context, index) {
               final cat = categories[index];
               return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                color: Colors.white,
+                elevation: 1.5,
+                shadowColor: AppColors.base.withOpacity(0.1),
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 child: ListTile(
-                  leading: CircleAvatar(
-                    child: Icon(_getIconData(cat.iconUrl)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  leading: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppColors.base.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      _getIconData(cat.iconUrl),
+                      color: AppColors.base,
+                      size: 26,
+                    ),
                   ),
-                  title: Text(cat.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text(
+                    cat.name,
+                    style: AppTextStyles.answer.copyWith(fontWeight: FontWeight.w600),
+                  ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        icon: const Icon(Icons.edit_rounded, color: AppColors.base),
                         onPressed: () => _showFormDialog(context, category: cat),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
+                        icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
                         onPressed: () => _showDeleteConfirm(context, cat),
                       ),
                     ],
@@ -71,9 +117,10 @@ class AdminCategoryScreen extends StatelessWidget {
           );
         },
       ),
+      // Tự động nhận màu cam điểm nhấn #FFB84D từ AppTheme
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showFormDialog(context),
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add, size: 28),
       ),
     );
   }
@@ -82,8 +129,7 @@ class AdminCategoryScreen extends StatelessWidget {
   void _showFormDialog(BuildContext context, {CategoryModel? category}) {
     final isEdit = category != null;
     final nameController = TextEditingController(text: isEdit ? category.name : '');
-    
-    // Lưu trạng thái icon đang được chọn (mặc định là 'default_icon' nếu tạo mới)
+
     String selectedIcon = (isEdit && _availableIcons.containsKey(category.iconUrl))
         ? category.iconUrl
         : 'default_icon';
@@ -93,18 +139,37 @@ class AdminCategoryScreen extends StatelessWidget {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: Text(isEdit ? 'Sửa môn học' : 'Thêm môn học'),
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text(
+              isEdit ? 'Sửa môn học' : 'Thêm môn học',
+              style: AppTextStyles.question,
+            ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 TextField(
                   controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Tên môn học'),
+                  style: AppTextStyles.text,
+                  decoration: InputDecoration(
+                    labelText: 'Tên môn học',
+                    labelStyle: AppTextStyles.text.copyWith(color: Colors.grey[600]),
+                    filled: true,
+                    fillColor: AppColors.background,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.base, width: 2),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
-                const Text('Chọn biểu tượng:', style: TextStyle(fontWeight: FontWeight.w500)),
-                const SizedBox(height: 8),
+                Text('Chọn biểu tượng:', style: AppTextStyles.answer),
+                const SizedBox(height: 10),
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
@@ -116,20 +181,20 @@ class AdminCategoryScreen extends StatelessWidget {
                           selectedIcon = entry.key;
                         });
                       },
-                      borderRadius: BorderRadius.circular(30),
+                      borderRadius: BorderRadius.circular(14),
                       child: Container(
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: isSelected ? Colors.blue.withOpacity(0.2) : Colors.grey.withOpacity(0.1),
-                          shape: BoxShape.circle,
+                          color: isSelected ? AppColors.base : AppColors.background,
+                          borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: isSelected ? Colors.blue : Colors.transparent,
-                            width: 2,
+                            color: isSelected ? AppColors.base : Colors.grey.shade300,
+                            width: 1.5,
                           ),
                         ),
                         child: Icon(
                           entry.value,
-                          color: isSelected ? Colors.blue : Colors.black54,
+                          color: isSelected ? Colors.white : AppColors.text,
                         ),
                       ),
                     );
@@ -140,7 +205,7 @@ class AdminCategoryScreen extends StatelessWidget {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Hủy'),
+                child: Text('Hủy', style: AppTextStyles.text.copyWith(color: Colors.grey[600])),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -165,20 +230,25 @@ class AdminCategoryScreen extends StatelessWidget {
     );
   }
 
-  // Popup Xóa
+  // Popup Xóa an toàn
   void _showDeleteConfirm(BuildContext context, CategoryModel category) {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Xác nhận xóa'),
-        content: Text('Xóa môn "${category.name}"?'),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Xác nhận xóa', style: AppTextStyles.question),
+        content: Text(
+          'Bạn có chắc muốn xóa môn "${category.name}" không?',
+          style: AppTextStyles.text,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Hủy'),
+            child: Text('Hủy', style: AppTextStyles.text.copyWith(color: Colors.grey[600])),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () async {
               try {
                 await _controller.deleteCategory(category.id);
@@ -190,7 +260,10 @@ class AdminCategoryScreen extends StatelessWidget {
                 Navigator.pop(dialogContext);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+                    SnackBar(
+                      content: Text(e.toString(), style: AppTextStyles.text.copyWith(color: Colors.white)),
+                      backgroundColor: Colors.redAccent,
+                    ),
                   );
                 }
               }

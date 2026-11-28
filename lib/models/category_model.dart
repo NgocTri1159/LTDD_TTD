@@ -3,7 +3,7 @@ class CategoryModel {
   final String name;
   final String iconUrl;
 
-  CategoryModel({
+  CategoryModel({ 
     required this.id,
     required this.name,
     this.iconUrl = '', // Có thể dùng chuỗi URL ảnh hoặc tên icon
